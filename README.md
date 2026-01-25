@@ -1,16 +1,16 @@
 # Smootie - 声控动作视频播放器
 
-基于语音识别的视频切换应用。支持浏览器语音识别和阿里云 Dashscope API。
+基于浏览器语音识别的视频切换应用。
 
-A web-based voice-controlled video player that switches videos based on voice commands. Supports both browser-based speech recognition and Dashscope API integration.
+A web-based voice-controlled video player that switches videos based on voice commands using browser speech recognition.
 
 ## 功能特性 (Features)
 
-- 语音控制视频切换 (Voice-controlled video switching)
-- 双模式识别：浏览器识别 + Dashscope API (Dual recognition modes)
+- 浏览器语音识别控制视频切换 (Browser voice recognition for video switching)
 - 支持中英文指令 (Supports Chinese and English commands)
 - 手动按钮控制 (Manual button controls for mobile)
 - 视频预加载，无缝切换 (Preloaded videos for smooth transitions)
+- 双视频层淡入淡出效果 (Dual video layer cross-fade effect)
 - 队列系统：随时接受指令，视频结束时切换 (Queue system with latest command override)
 
 ## 语音指令 (Voice Commands)
@@ -46,7 +46,7 @@ A web-based voice-controlled video player that switches videos based on voice co
 ### 环境要求 (Prerequisites)
 
 - Python 3.8+
-- 现代浏览器（推荐 Chrome/Edge）
+- 现代浏览器（Chrome/Edge，支持 Web Speech API）
 - 麦克风权限
 
 ### 安装步骤 (Installation)
@@ -61,10 +61,6 @@ cd smootie
 ```bash
 pip install -r requirements.txt
 ```
-
-3. 配置 Dashscope API（可选）：
-   - 复制 `.env.example` 到 `.env`
-   - 在 `.env` 中添加你的 Dashscope API Key
 
 ### 运行应用 (Running)
 
@@ -88,7 +84,6 @@ http://localhost:5001
 smootie/
 ├── app.py                 # Flask 后端服务器
 ├── requirements.txt       # Python 依赖
-├── .env                   # 环境变量（包含 API Key）
 ├── templates/
 │   └── index.html        # 主页面
 ├── static/
@@ -105,13 +100,18 @@ smootie/
 ### 视频切换逻辑
 
 1. **初始状态**：应用启动时播放 `idle.mov`
-2. **视频预加载**：页面加载时预加载所有视频到内存
-3. **语音识别**：持续监听语音输入
-4. **指令队列**：
+2. **双视频层技术**：使用两个视频元素层叠，实现无缝切换
+3. **视频预加载**：页面加载时预加载所有视频到内存
+4. **语音识别**：持续监听语音输入
+5. **指令队列**：
    - 识别到指令后，将目标视频加入队列
    - 新指令会覆盖之前的队列
    - 当前视频播放完毕后切换到队列中的视频
-5. **无缝切换**：使用预加载的视频实现即时切换
+6. **平滑过渡**：
+   - 在后台视频层加载新视频
+   - 使用 CSS 淡入淡出效果（300ms）
+   - 新视频开始播放后，旧视频淡出
+   - 完全无黑屏，移动端体验流畅
 
 ### 识别流程
 
@@ -139,7 +139,10 @@ smootie/
 | Safari | ❌ 不支持 | ✅ | ⭐⭐⭐ |
 | Firefox | ❌ 不支持 | ✅ | ⭐⭐⭐ |
 
-**注意**：移动端建议使用手动按钮控制，语音识别可能不稳定。
+**注意**：
+- 语音识别需要 Web Speech API 支持（Chrome/Edge）
+- 移动端建议使用手动按钮控制，语音识别可能不稳定
+- Safari 和 Firefox 不支持 Web Speech API，只能使用手动按钮
 
 ## 调试技巧 (Debugging)
 
@@ -165,7 +168,8 @@ smootie/
 
 **Q: 移动端识别不准确怎么办？**
 - 使用手动按钮控制
-- 或者切换到 Dashscope API 模式（需要配置 API Key）
+- 确保在安静环境中使用
+- 说话清晰，语速适中
 
 **Q: 移动端点击"开始监听"后视频进入全屏模式？**
 - 已添加防止全屏的代码
@@ -178,9 +182,16 @@ smootie/
 - 系统会自动防止和退出全屏模式
 - 如果遇到此问题，刷新页面或使用手动按钮
 
+**Q: 移动端视频切换时有黑屏？**
+- 已使用双视频层技术解决
+- 新视频在后台加载，加载完成后淡入
+- 旧视频同时淡出，实现平滑过渡
+- 完全无黑屏，体验流畅
+
 **Q: 视频切换有延迟？**
 - 系统会等待当前视频播放完毕才切换
 - 这是设计行为，确保视频完整播放
+- 切换过程使用 300ms 淡入淡出效果
 
 ## 许可证 (License)
 

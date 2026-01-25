@@ -39,18 +39,29 @@ h1 {
     pointer-events: none; /* Prevent clicks on container */
 }
 
-#videoPlayer {
+.video-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: auto;
     display: block;
     pointer-events: none; /* Prevent clicks on video */
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
 }
 
-#videoPlayer::-webkit-media-controls {
+.video-layer.active {
+    position: relative;
+    opacity: 1;
+    z-index: 2;
+}
+
+.video-layer::-webkit-media-controls {
     display: none !important;
 }
 
-#videoPlayer::-webkit-media-controls-enclosure {
+.video-layer::-webkit-media-controls-enclosure {
     display: none !important;
 }
 

@@ -1,6 +1,10 @@
 class VoiceVideoController {
     constructor() {
-        this.videoPlayer = document.getElementById('videoPlayer');
+        this.videoPlayer1 = document.getElementById('videoPlayer1');
+        this.videoPlayer2 = document.getElementById('videoPlayer2');
+        this.activePlayer = this.videoPlayer1;
+        this.inactivePlayer = this.videoPlayer2;
+
         this.startBtn = document.getElementById('startBtn');
         this.stopBtn = document.getElementById('stopBtn');
         this.statusEl = document.getElementById('status');
@@ -9,11 +13,11 @@ class VoiceVideoController {
         this.queuedVideoEl = document.getElementById('queuedVideo');
 
         this.recognition = null;
-        this.mediaRecorder = null;
         this.isListening = false;
         this.currentVideo = 'idle.mov';
         this.queuedVideo = null;
         this.isVideoPlaying = false;
+        this.isSwitching = false;
 
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
@@ -60,38 +64,45 @@ class VoiceVideoController {
             });
         });
 
-        this.videoPlayer.addEventListener('play', () => {
-            this.isVideoPlaying = true;
-        });
-
-        this.videoPlayer.addEventListener('ended', () => {
-            this.isVideoPlaying = false;
-            this.onVideoEnded();
-        });
-
-        // Prevent fullscreen on mobile
-        this.videoPlayer.addEventListener('webkitbeginfullscreen', (e) => {
-            console.log('Preventing fullscreen');
-            e.preventDefault();
-            e.stopPropagation();
-        });
-
-        this.videoPlayer.addEventListener('webkitendfullscreen', (e) => {
-            console.log('Exiting fullscreen');
-        });
-
-        // Prevent fullscreen when clicking on video
-        this.videoPlayer.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Exit fullscreen if in fullscreen
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
+        // Setup both video players
+        [this.videoPlayer1, this.videoPlayer2].forEach(player => {
+            player.addEventListener('play', () => {
+                if (player === this.activePlayer) {
+                    this.isVideoPlaying = true;
+                    console.log('Active player started playing');
                 }
-            }
+            });
+
+            player.addEventListener('ended', () => {
+                console.log('Video ended event fired for', player === this.activePlayer ? 'active' : 'inactive', 'player');
+                if (player === this.activePlayer) {
+                    this.isVideoPlaying = false;
+                    console.log('Active video ended, queued video:', this.queuedVideo);
+                    this.onVideoEnded();
+                }
+            });
+
+            player.addEventListener('timeupdate', () => {
+                if (player === this.activePlayer && this.queuedVideo) {
+                    // Log when approaching end
+                    const remaining = player.duration - player.currentTime;
+                    if (remaining < 1 && remaining > 0.9) {
+                        console.log(`Video ending soon, ${remaining.toFixed(2)}s remaining, queued: ${this.queuedVideo}`);
+                    }
+                }
+            });
+
+            // Prevent fullscreen on mobile
+            player.addEventListener('webkitbeginfullscreen', (e) => {
+                console.log('Preventing fullscreen');
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            player.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
         });
 
         // Monitor fullscreen changes
@@ -110,10 +121,10 @@ class VoiceVideoController {
         });
 
         // Start playing the initial video
-        this.videoPlayer.play().catch(err => {
+        this.activePlayer.play().catch(err => {
             console.log('Autoplay prevented, user interaction required');
-            this.videoPlayer.muted = true;
-            this.videoPlayer.play();
+            this.activePlayer.muted = true;
+            this.activePlayer.play();
         });
     }
 
@@ -148,22 +159,15 @@ class VoiceVideoController {
     }
 
     getRecognitionMode() {
-        return document.querySelector('input[name="mode"]:checked').value;
+        return 'browser'; // Always use browser recognition
     }
 
     startListening() {
-        const mode = this.getRecognitionMode();
-
-        if (mode === 'browser') {
-            this.startBrowserRecognition();
-        } else {
-            this.startDashscopeRecognition();
-        }
-
+        this.startBrowserRecognition();
         this.isListening = true;
         this.startBtn.disabled = true;
         this.stopBtn.disabled = false;
-        this.updateStatus('Listening...');
+        this.updateStatus('正在监听... Listening...');
     }
 
     stopListening() {
@@ -172,14 +176,10 @@ class VoiceVideoController {
             this.recognition = null;
         }
 
-        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-            this.mediaRecorder.stop();
-        }
-
         this.isListening = false;
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
-        this.updateStatus('Stopped');
+        this.updateStatus('已停止 Stopped');
     }
 
     startBrowserRecognition() {
@@ -298,70 +298,6 @@ class VoiceVideoController {
         return false;
     }
 
-    async startDashscopeRecognition() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.mediaRecorder = new MediaRecorder(stream);
-
-            let audioChunks = [];
-
-            this.mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
-            };
-
-            this.mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                audioChunks = [];
-
-                await this.sendAudioToDashscope(audioBlob);
-
-                if (this.isListening) {
-                    // Restart recording
-                    audioChunks = [];
-                    this.mediaRecorder.start();
-                    setTimeout(() => {
-                        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                            this.mediaRecorder.stop();
-                        }
-                    }, 3000); // Record for 3 seconds at a time
-                }
-            };
-
-            this.mediaRecorder.start();
-            setTimeout(() => {
-                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                    this.mediaRecorder.stop();
-                }
-            }, 3000);
-
-        } catch (err) {
-            console.error('Error accessing microphone:', err);
-            alert('Could not access microphone. Please grant permission.');
-            this.stopListening();
-        }
-    }
-
-    async sendAudioToDashscope(audioBlob) {
-        const formData = new FormData();
-        formData.append('audio', audioBlob);
-
-        try {
-            const response = await fetch('/api/recognize', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (data.text) {
-                this.recognizedEl.textContent = data.text;
-                this.processCommand(data.text);
-            }
-        } catch (err) {
-            console.error('Error sending audio to server:', err);
-        }
-    }
-
     processCommand(text) {
         console.log('Processing command:', text);
         if (!this.tryProcessCommand(text)) {
@@ -372,20 +308,26 @@ class VoiceVideoController {
     queueVideoSwitch(videoFile) {
         if (videoFile === this.currentVideo) {
             // Already playing this video
+            console.log('Video already playing, ignoring queue request');
             return;
         }
 
+        console.log(`Queueing video: ${videoFile}, will switch when current video ends`);
         this.queuedVideo = videoFile;
         this.queuedVideoEl.textContent = videoFile;
 
-        // If video is not playing or is about to end, switch immediately
-        if (!this.isVideoPlaying || this.videoPlayer.currentTime >= this.videoPlayer.duration - 0.5) {
-            this.switchVideo();
-        }
+        // DO NOT switch immediately - always wait for video to end
+        // The switch will happen in onVideoEnded() when the current video finishes
     }
 
     switchVideo() {
         if (!this.queuedVideo) {
+            console.log('switchVideo called but no queued video');
+            return;
+        }
+
+        if (this.isSwitching) {
+            console.log('switchVideo called but already switching');
             return;
         }
 
@@ -396,32 +338,59 @@ class VoiceVideoController {
         this.currentVideo = videoToPlay;
         this.currentVideoEl.textContent = videoToPlay;
 
-        const wasPaused = this.videoPlayer.paused;
+        this.isSwitching = true;
+        console.log(`Starting switch to ${videoToPlay}`);
 
-        // Use preloaded video if available for instant switching
-        if (this.preloadedVideos[videoToPlay]) {
-            const preloadedVideo = this.preloadedVideos[videoToPlay];
-            this.videoPlayer.src = preloadedVideo.src;
-            this.videoPlayer.currentTime = 0;
-        } else {
-            // Fallback to loading if not preloaded
-            this.videoPlayer.src = `/videos/${videoToPlay}`;
-            this.videoPlayer.load();
-        }
+        // Prepare the inactive player with the new video
+        this.inactivePlayer.src = `/videos/${videoToPlay}`;
+        this.inactivePlayer.load();
 
-        if (!wasPaused) {
-            this.videoPlayer.play().catch(err => {
-                console.error('Error playing video:', err);
+        // Wait for the new video to be ready
+        const onCanPlay = () => {
+            this.inactivePlayer.removeEventListener('canplay', onCanPlay);
+            console.log('New video ready to play');
+
+            // Start playing the new video
+            this.inactivePlayer.currentTime = 0;
+            this.inactivePlayer.play().then(() => {
+                console.log('New video playing, starting cross-fade');
+
+                // Cross-fade: show new video, hide old video
+                this.inactivePlayer.classList.add('active');
+                this.activePlayer.classList.remove('active');
+
+                // After transition completes, stop the old video
+                setTimeout(() => {
+                    this.activePlayer.pause();
+                    this.activePlayer.currentTime = 0;
+
+                    // Swap active/inactive references
+                    const temp = this.activePlayer;
+                    this.activePlayer = this.inactivePlayer;
+                    this.inactivePlayer = temp;
+
+                    this.isSwitching = false;
+                    console.log('Video switch complete, new active video:', videoToPlay);
+                }, 300); // Match CSS transition duration
+            }).catch(err => {
+                console.error('Error playing new video:', err);
+                this.isSwitching = false;
             });
-        }
+        };
+
+        this.inactivePlayer.addEventListener('canplay', onCanPlay);
     }
 
     onVideoEnded() {
+        console.log('onVideoEnded called, queuedVideo:', this.queuedVideo);
         if (this.queuedVideo) {
+            console.log('Switching to queued video:', this.queuedVideo);
             this.switchVideo();
         } else {
             // Loop current video
-            this.videoPlayer.play();
+            console.log('No queued video, looping current video');
+            this.activePlayer.currentTime = 0;
+            this.activePlayer.play();
         }
     }
 
