@@ -112,6 +112,72 @@ h1 {
     cursor: not-allowed;
 }
 
+.manual-controls {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.manual-controls h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 20px 40px;
+    font-size: 1.3em;
+    font-weight: 600;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    min-width: 140px;
+}
+
+.action-btn:active {
+    transform: scale(0.95);
+}
+
+.jump-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.jump-btn:hover {
+    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.5);
+    transform: translateY(-2px);
+}
+
+.circle-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.circle-btn:hover {
+    box-shadow: 0 6px 15px rgba(245, 87, 108, 0.5);
+    transform: translateY(-2px);
+}
+
+.stop-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stop-btn:hover {
+    box-shadow: 0 6px 15px rgba(79, 172, 254, 0.5);
+    transform: translateY(-2px);
+}
+
 .status {
     background: #f5f5f5;
     padding: 20px;
@@ -171,5 +237,24 @@ h1 {
         padding: 10px 20px;
         font-size: 1em;
         margin: 5px;
+    }
+
+    .action-btn {
+        padding: 15px 25px;
+        font-size: 1.1em;
+        min-width: 100px;
+    }
+
+    .button-group {
+        gap: 10px;
+    }
+
+    .recognition-mode {
+        margin-bottom: 15px;
+    }
+
+    .recognition-mode label {
+        margin: 0 10px;
+        font-size: 1em;
     }
 }

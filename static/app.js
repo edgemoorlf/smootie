@@ -50,6 +50,16 @@ class VoiceVideoController {
         this.startBtn.addEventListener('click', () => this.startListening());
         this.stopBtn.addEventListener('click', () => this.stopListening());
 
+        // Add manual control button listeners
+        const actionButtons = document.querySelectorAll('.action-btn');
+        actionButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const video = e.target.getAttribute('data-video');
+                console.log('Manual button clicked:', video);
+                this.queueVideoSwitch(video);
+            });
+        });
+
         this.videoPlayer.addEventListener('play', () => {
             this.isVideoPlaying = true;
         });
@@ -134,7 +144,7 @@ class VoiceVideoController {
 
     startBrowserRecognition() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert('Browser speech recognition is not supported in your browser. Please use Chrome or Edge.');
+            alert('浏览器不支持语音识别。请使用 Chrome 或 Edge 浏览器。\nBrowser speech recognition is not supported. Please use Chrome or Edge.');
             this.stopListening();
             return;
         }
@@ -143,12 +153,13 @@ class VoiceVideoController {
         this.recognition = new SpeechRecognition();
 
         const languageSelect = document.getElementById('languageSelect');
-        const selectedLang = languageSelect ? languageSelect.value : 'en-US';
+        const selectedLang = languageSelect ? languageSelect.value : 'zh-CN';
 
-        this.recognition.continuous = true;
-        this.recognition.interimResults = true; // Enable interim results for better feedback
+        // Mobile-optimized settings
+        this.recognition.continuous = false; // Better for mobile - one phrase at a time
+        this.recognition.interimResults = true;
         this.recognition.lang = selectedLang;
-        this.recognition.maxAlternatives = 3;
+        this.recognition.maxAlternatives = 5; // More alternatives for better matching
 
         console.log('Starting recognition with language:', selectedLang);
 
@@ -157,10 +168,25 @@ class VoiceVideoController {
             const result = event.results[last];
 
             if (result.isFinal) {
-                const text = result[0].transcript.trim();
-                console.log('Recognized (final):', text);
-                this.recognizedEl.textContent = text;
-                this.processCommand(text);
+                // Check all alternatives, not just the first one
+                let matched = false;
+                for (let i = 0; i < result.length; i++) {
+                    const text = result[i].transcript.trim();
+                    console.log(`Alternative ${i}: ${text} (confidence: ${result[i].confidence})`);
+
+                    if (!matched) {
+                        this.recognizedEl.textContent = text;
+                        // Try to match this alternative
+                        if (this.tryProcessCommand(text)) {
+                            matched = true;
+                            console.log(`Matched with alternative ${i}`);
+                        }
+                    }
+                }
+
+                if (!matched) {
+                    console.log('No match found in any alternative');
+                }
             } else {
                 // Show interim results
                 const text = result[0].transcript.trim();
@@ -172,38 +198,64 @@ class VoiceVideoController {
         this.recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
             if (event.error === 'no-speech') {
-                // Continue listening
+                console.log('No speech detected, restarting...');
                 return;
             }
             if (event.error === 'aborted') {
                 return;
             }
-            this.updateStatus(`Error: ${event.error}`);
+            if (event.error === 'network') {
+                this.updateStatus('网络错误 Network error');
+                return;
+            }
+            this.updateStatus(`错误 Error: ${event.error}`);
         };
 
         this.recognition.onend = () => {
             console.log('Recognition ended, isListening:', this.isListening);
             if (this.isListening) {
                 // Restart recognition if still listening
-                try {
-                    this.recognition.start();
-                } catch (e) {
-                    console.error('Error restarting recognition:', e);
-                }
+                setTimeout(() => {
+                    try {
+                        this.recognition.start();
+                    } catch (e) {
+                        console.error('Error restarting recognition:', e);
+                    }
+                }, 300); // Small delay for mobile
             }
         };
 
         this.recognition.onstart = () => {
             console.log('Recognition started');
-            this.updateStatus('Listening...');
+            this.updateStatus('正在监听... Listening...');
         };
 
         try {
             this.recognition.start();
         } catch (e) {
             console.error('Error starting recognition:', e);
-            this.updateStatus('Error starting recognition');
+            this.updateStatus('启动识别失败 Error starting recognition');
         }
+    }
+
+    // Helper method to try processing a command and return if it matched
+    tryProcessCommand(text) {
+        const lowerText = text.toLowerCase();
+        const chars = text.split('');
+        const words = lowerText.split(/\s+/);
+
+        for (const [command, video] of Object.entries(this.commandMap)) {
+            const lowerCommand = command.toLowerCase();
+
+            if (lowerText.includes(lowerCommand) ||
+                chars.includes(command) ||
+                words.includes(lowerCommand)) {
+                console.log(`Command matched: ${command} -> ${video}`);
+                this.queueVideoSwitch(video);
+                return true;
+            }
+        }
+        return false;
     }
 
     async startDashscopeRecognition() {
@@ -271,17 +323,10 @@ class VoiceVideoController {
     }
 
     processCommand(text) {
-        const lowerText = text.toLowerCase();
-        console.log('Processing command:', lowerText);
-
-        for (const [command, video] of Object.entries(this.commandMap)) {
-            if (lowerText.includes(command.toLowerCase())) {
-                console.log(`Command matched: ${command} -> ${video}`);
-                this.queueVideoSwitch(video);
-                return;
-            }
+        console.log('Processing command:', text);
+        if (!this.tryProcessCommand(text)) {
+            console.log('No command matched');
         }
-        console.log('No command matched');
     }
 
     queueVideoSwitch(videoFile) {

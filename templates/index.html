@@ -21,7 +21,7 @@
             <div class="recognition-mode">
                 <label>
                     <input type="radio" name="mode" value="browser" checked>
-                    Browser Recognition
+                    语音识别
                 </label>
                 <label>
                     <input type="radio" name="mode" value="dashscope">
@@ -31,7 +31,7 @@
 
             <div class="recognition-mode">
                 <label>
-                    Language:
+                    语言:
                     <select id="languageSelect">
                         <option value="en-US">English</option>
                         <option value="zh-CN">中文</option>
@@ -39,38 +39,41 @@
                 </label>
             </div>
 
-            <button id="startBtn" class="btn">Start Listening</button>
-            <button id="stopBtn" class="btn" disabled>Stop Listening</button>
+            <button id="startBtn" class="btn">开始监听</button>
+            <button id="stopBtn" class="btn" disabled>停止监听</button>
+        </div>
+
+        <div class="manual-controls">
+            <h3>手动控制:</h3>
+            <div class="button-group">
+                <button class="action-btn jump-btn" data-video="jump.mov">跳 Jump</button>
+                <button class="action-btn circle-btn" data-video="circle.mov">转 Circle</button>
+                <button class="action-btn stop-btn" data-video="idle.mov">停 Stop</button>
+            </div>
         </div>
 
         <div class="status">
             <div class="status-item">
-                <strong>Status:</strong> <span id="status">Ready</span>
+                <strong>状态:</strong> <span id="status">Ready</span>
             </div>
             <div class="status-item">
-                <strong>Recognized:</strong> <span id="recognized"></span>
+                <strong>识别内容:</strong> <span id="recognized">-</span>
             </div>
             <div class="status-item">
-                <strong>Current Video:</strong> <span id="currentVideo">idle.mov</span>
+                <strong>当前视频:</strong> <span id="currentVideo">idle.mov</span>
             </div>
             <div class="status-item">
-                <strong>Queued Video:</strong> <span id="queuedVideo">-</span>
+                <strong>队列视频:</strong> <span id="queuedVideo">-</span>
             </div>
         </div>
 
         <div class="commands">
-            <h3>Voice Commands:</h3>
+            <h3>语音指令:</h3>
             <ul>
-                <li><strong>jump</strong> or <strong>跳</strong> (条/调) → Switch to jump.mov</li>
-                <li><strong>circle</strong> or <strong>转</strong> (赚/传/专) → Switch to circle.mov</li>
-                <li><strong>stop</strong> or <strong>停</strong> (听/挺/庭) → Switch to idle.mov</li>
+                <li><strong>跳 / jump</strong> → jump.mov</li>
+                <li><strong>转 / circle</strong> → circle.mov</li>
+                <li><strong>停 / stop</strong> → idle.mov</li>
             </ul>
-            <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
-                <strong>Note:</strong> Similar-sounding Chinese characters in parentheses are also recognized to handle speech recognition errors.
-            </p>
-            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                <strong>Tip:</strong> Open browser console (F12) to see recognition debug logs
-            </p>
         </div>
     </div>
 
