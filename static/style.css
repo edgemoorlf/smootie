@@ -36,12 +36,22 @@ h1 {
     overflow: hidden;
     background: #000;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    pointer-events: none; /* Prevent clicks on container */
 }
 
 #videoPlayer {
     width: 100%;
     height: auto;
     display: block;
+    pointer-events: none; /* Prevent clicks on video */
+}
+
+#videoPlayer::-webkit-media-controls {
+    display: none !important;
+}
+
+#videoPlayer::-webkit-media-controls-enclosure {
+    display: none !important;
 }
 
 .controls {

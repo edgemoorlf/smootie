@@ -69,6 +69,46 @@ class VoiceVideoController {
             this.onVideoEnded();
         });
 
+        // Prevent fullscreen on mobile
+        this.videoPlayer.addEventListener('webkitbeginfullscreen', (e) => {
+            console.log('Preventing fullscreen');
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        this.videoPlayer.addEventListener('webkitendfullscreen', (e) => {
+            console.log('Exiting fullscreen');
+        });
+
+        // Prevent fullscreen when clicking on video
+        this.videoPlayer.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Exit fullscreen if in fullscreen
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        });
+
+        // Monitor fullscreen changes
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                console.log('Entered fullscreen, exiting...');
+                document.exitFullscreen();
+            }
+        });
+
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (document.webkitFullscreenElement) {
+                console.log('Entered webkit fullscreen, exiting...');
+                document.webkitExitFullscreen();
+            }
+        });
+
         // Start playing the initial video
         this.videoPlayer.play().catch(err => {
             console.log('Autoplay prevented, user interaction required');
