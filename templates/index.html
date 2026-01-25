@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smootie - Voice Controlled Video</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Smootie - 声控动作</h1>
+
+        <div class="video-container">
+            <video id="videoPlayer" autoplay muted>
+                <source src="/videos/idle.mov" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div class="controls">
+            <div class="recognition-mode">
+                <label>
+                    <input type="radio" name="mode" value="browser" checked>
+                    Browser Recognition
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="dashscope">
+                    Dashscope API
+                </label>
+            </div>
+
+            <div class="recognition-mode">
+                <label>
+                    Language:
+                    <select id="languageSelect">
+                        <option value="en-US">English</option>
+                        <option value="zh-CN">中文</option>
+                    </select>
+                </label>
+            </div>
+
+            <button id="startBtn" class="btn">Start Listening</button>
+            <button id="stopBtn" class="btn" disabled>Stop Listening</button>
+        </div>
+
+        <div class="status">
+            <div class="status-item">
+                <strong>Status:</strong> <span id="status">Ready</span>
+            </div>
+            <div class="status-item">
+                <strong>Recognized:</strong> <span id="recognized"></span>
+            </div>
+            <div class="status-item">
+                <strong>Current Video:</strong> <span id="currentVideo">idle.mov</span>
+            </div>
+            <div class="status-item">
+                <strong>Queued Video:</strong> <span id="queuedVideo">-</span>
+            </div>
+        </div>
+
+        <div class="commands">
+            <h3>Voice Commands:</h3>
+            <ul>
+                <li><strong>jump</strong> or <strong>跳</strong> (条/调) → Switch to jump.mov</li>
+                <li><strong>circle</strong> or <strong>转</strong> (赚/传/专) → Switch to circle.mov</li>
+                <li><strong>stop</strong> or <strong>停</strong> (听/挺/庭) → Switch to idle.mov</li>
+            </ul>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
+                <strong>Note:</strong> Similar-sounding Chinese characters in parentheses are also recognized to handle speech recognition errors.
+            </p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                <strong>Tip:</strong> Open browser console (F12) to see recognition debug logs
+            </p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
