@@ -19,6 +19,9 @@ class VoiceVideoController {
         this.isVideoPlaying = false;
         this.isSwitching = false;
 
+        // Current video set (subdirectory in videos/)
+        this.currentSet = 'default';
+
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
         this.videoFiles = ['idle.mov', 'jump.mov', 'circle.mov'];
@@ -133,11 +136,11 @@ class VoiceVideoController {
             return new Promise((resolve, reject) => {
                 const video = document.createElement('video');
                 video.preload = 'auto';
-                video.src = `/videos/${videoFile}`;
+                video.src = `/videos/${this.currentSet}/${videoFile}`;
 
                 video.addEventListener('loadeddata', () => {
                     this.preloadedVideos[videoFile] = video;
-                    console.log(`Preloaded: ${videoFile}`);
+                    console.log(`Preloaded: ${this.currentSet}/${videoFile}`);
                     resolve();
                 });
 
@@ -342,7 +345,7 @@ class VoiceVideoController {
         console.log(`Starting switch to ${videoToPlay}`);
 
         // Prepare the inactive player with the new video
-        this.inactivePlayer.src = `/videos/${videoToPlay}`;
+        this.inactivePlayer.src = `/videos/${this.currentSet}/${videoToPlay}`;
         this.inactivePlayer.load();
 
         // Wait for the new video to be ready

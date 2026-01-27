@@ -196,3 +196,153 @@ smootie/
 ## 许可证 (License)
 
 MIT License - See LICENSE file for details
+
+---
+
+## 扩展：添加新视频 (Extending: Adding New Videos)
+
+### 🎬 视频搜索和下载工具 (Video Search & Download Tool)
+
+项目包含完整的视频搜索工具，帮助你找到合适的循环视频：
+
+#### 快速开始 (Quick Start)
+
+```bash
+# 1. 安装依赖
+pip install -r requirements-video-search.txt
+brew install ffmpeg  # macOS, or: apt install ffmpeg
+
+# 2. 查看所有可用动作类型
+python search_videos.py --list-actions
+
+# 3. 搜索特定动作的视频
+python search_videos.py --action walking --preview-only
+
+# 4. 下载视频
+python search_videos.py --action walking --download --url "VIDEO_URL"
+
+# 5. 或使用交互式菜单
+./video_search.sh
+```
+
+#### 支持的动作类型 (Supported Actions)
+
+**静态动作 (Static/Idle)** - 带自然呼吸和微动作：
+- `standing` - 站立待机（有呼吸动作）
+- `sitting` - 坐姿待机（有呼吸动作）
+
+**动态动作 (Dynamic)** - 循环动作：
+- `walking` - 行走
+- `running` - 跑步
+- `jumping` - 跳跃
+- `dancing` - 跳舞
+- `waving` - 挥手
+
+**过渡动作 (Transitions)** - 状态切换：
+- `stand_to_sit` - 站立到坐下
+- `sit_to_stand` - 坐下到站立
+- `stand_to_walk` - 站立到行走
+- `walk_to_stand` - 行走到站立
+
+### 视频要求 (Video Requirements)
+
+#### 必须满足 (Must Have):
+- ✅ 真人拍摄（非动画/CGI）
+- ✅ 时长：2-30秒
+- ✅ 分辨率：720p 或更高
+- ✅ 可循环播放（开始和结束位置相似）
+- ✅ 背景简洁
+- ✅ 摄像机稳定
+- ✅ 静态动作：需要自然呼吸和微动作（不是完全静止）
+
+#### 避免 (Avoid):
+- ❌ 摄像机抖动
+- ❌ 复杂背景
+- ❌ 低分辨率
+- ❌ 水印
+- ❌ 静态动作：完全僵硬/静止的姿势
+
+### 视频来源推荐 (Recommended Sources)
+
+**免费素材网站：**
+- **Pexels Videos**: https://www.pexels.com/videos/ (免费，无需署名)
+- **Mixkit**: https://mixkit.co/free-stock-video/ (免费视频片段)
+- **Pixabay**: https://pixabay.com/videos/ (免费素材库)
+- **Videvo**: https://www.videvo.net/ (免费和付费)
+
+**YouTube 搜索技巧：**
+- "person [action] loop green screen"
+- "[action] cycle reference real person"
+- "person standing idle breathing" (静态动作)
+- "human motion reference footage"
+
+### 完整文档 (Complete Documentation)
+
+查看以下文档了解更多：
+
+1. **VIDEO_SEARCH_INSTALLATION.md** - 安装完成确认和快速开始
+2. **VIDEO_SEARCH_QUICKSTART.md** - 快速入门指南
+3. **VIDEO_SEARCH_GUIDE.md** - 完整详细指南
+4. **VIDEO_COMMANDS_REFERENCE.md** - 命令映射和集成参考
+5. **VIDEO_EXAMPLES.md** - 具体示例和链接
+6. **VIDEO_CREDITS.md** - 视频来源和许可证追踪模板
+
+### 工作流程示例 (Workflow Example)
+
+```bash
+# 1. 搜索视频
+python search_videos.py --action walking --preview-only
+
+# 2. 下载视频
+python search_videos.py --action walking --download --url "https://youtube.com/watch?v=..."
+
+# 3. 测试循环（在视频播放器中打开）
+open videos/walking.mp4
+
+# 4. 如需要，优化循环点
+ffmpeg -i videos/walking.mp4 -ss 00:00:02 -to 00:00:08 -c copy videos/walking_loop.mp4
+
+# 5. 更新 static/app.js
+# 添加到 videoFiles 数组和 commandMap
+
+# 6. 更新 templates/index.html
+# 添加到命令列表
+
+# 7. 测试
+python app.py
+```
+
+### 视频处理技巧 (Video Processing Tips)
+
+```bash
+# 制作无缝循环
+ffmpeg -i input.mp4 -ss 00:00:02 -to 00:00:08 -c copy output.mp4
+
+# 创建乒乓循环（正放+倒放）
+ffmpeg -i input.mp4 -filter_complex "[0:v]reverse[r];[0:v][r]concat=n=2:v=1[v]" -map "[v]" output.mp4
+
+# 优化网页播放
+ffmpeg -i input.mp4 -vf scale=1280:720 -c:v libx264 -crf 23 -preset slow -an output.mp4
+
+# 格式转换
+ffmpeg -i input.mov -c:v libx264 -c:a aac output.mp4
+```
+
+### 许可证合规 (License Compliance)
+
+**重要提醒：**
+- 始终检查视频许可证
+- 在 `VIDEO_CREDITS.md` 中记录来源
+- 如需要，提供署名
+- 验证是否允许商业使用
+- 保留许可证文档备份
+
+### 需要帮助？(Need Help?)
+
+1. 查看 `VIDEO_SEARCH_INSTALLATION.md` 确认安装
+2. 阅读 `VIDEO_SEARCH_QUICKSTART.md` 快速入门
+3. 参考 `VIDEO_SEARCH_GUIDE.md` 详细指南
+4. 查看 `VIDEO_EXAMPLES.md` 具体示例
+5. 检查故障排除部分
+
+---
