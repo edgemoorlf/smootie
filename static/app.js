@@ -14,40 +14,121 @@ class VoiceVideoController {
 
         this.recognition = null;
         this.isListening = false;
-        this.currentVideo = 'idle.mov';
         this.queuedVideo = null;
         this.isVideoPlaying = false;
         this.isSwitching = false;
 
-        // Current video set (subdirectory in videos/)
-        this.currentSet = 'default';
-
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
-        this.videoFiles = ['idle.mov', 'jump.mov', 'circle.mov'];
 
-        // Command map with similar-sounding alternatives
-        this.commandMap = {
-            'jump': 'jump.mov',
-            '跳': 'jump.mov',
-            '条': 'jump.mov',  // Similar sound to 跳
-            '调': 'jump.mov',  // Similar sound to 跳
-            'circle': 'circle.mov',
-            '转': 'circle.mov',
-            '赚': 'circle.mov',  // Similar sound to 转
-            '传': 'circle.mov',  // Similar sound to 转
-            '专': 'circle.mov',  // Similar sound to 转
-            'stop': 'idle.mov',
-            '停': 'idle.mov',
-            '听': 'idle.mov',  // Similar sound to 停
-            '挺': 'idle.mov',  // Similar sound to 停
-            '庭': 'idle.mov'   // Similar sound to 停
+        // Video set configurations
+        this.videoSets = {
+            'tiktok/set1': {
+                videos: ['1.mp4', '2.mp4', '3.mp4'],
+                defaultVideo: '1.mp4',
+                commands: {
+                    'jump': '1.mp4',
+                    '跳': '1.mp4',
+                    '条': '1.mp4',
+                    '调': '1.mp4',
+                    'circle': '2.mp4',
+                    '转': '2.mp4',
+                    '赚': '2.mp4',
+                    '传': '2.mp4',
+                    '专': '2.mp4',
+                    'stop': '3.mp4',
+                    '停': '3.mp4',
+                    '听': '3.mp4',
+                    '挺': '3.mp4',
+                    '庭': '3.mp4'
+                },
+                buttons: [
+                    { label: '扭', video: '1.mp4', class: 'jump-btn' },
+                    { label: '抖', video: '2.mp4', class: 'circle-btn' },
+                    { label: '颠', video: '3.mp4', class: 'stop-btn' }
+                ]
+            },
+            'tiktok/set2': {
+                videos: ['4.mp4', '5.mp4', '6.mp4'],
+                defaultVideo: '6.mp4',
+                commands: {
+                    'jump': '4.mp4',
+                    '跳': '4.mp4',
+                    '条': '4.mp4',
+                    '调': '4.mp4',
+                    'circle': '5.mp4',
+                    '转': '5.mp4',
+                    '赚': '5.mp4',
+                    '传': '5.mp4',
+                    '专': '5.mp4',
+                    'stop': '6.mp4',
+                    '停': '6.mp4',
+                    '听': '6.mp4',
+                    '挺': '6.mp4',
+                    '庭': '6.mp4'
+                },
+                buttons: [
+                    { label: '跳 Jump', video: '4.mp4', class: 'jump-btn' },
+                    { label: '转 Circle', video: '5.mp4', class: 'circle-btn' },
+                    { label: '停 Stop', video: '6.mp4', class: 'stop-btn' }
+                ]
+            },
+            'default': {
+                videos: ['idle.mov', 'jump.mov', 'circle.mov'],
+                defaultVideo: 'idle.mov',
+                commands: {
+                    'jump': 'jump.mov',
+                    '跳': 'jump.mov',
+                    '条': 'jump.mov',
+                    '调': 'jump.mov',
+                    'circle': 'circle.mov',
+                    '转': 'circle.mov',
+                    '赚': 'circle.mov',
+                    '传': 'circle.mov',
+                    '专': 'circle.mov',
+                    'stop': 'idle.mov',
+                    '停': 'idle.mov',
+                    '听': 'idle.mov',
+                    '挺': 'idle.mov',
+                    '庭': 'idle.mov'
+                },
+                buttons: [
+                    { label: '跳 Jump', video: 'jump.mov', class: 'jump-btn' },
+                    { label: '转 Circle', video: 'circle.mov', class: 'circle-btn' },
+                    { label: '停 Stop', video: 'idle.mov', class: 'stop-btn' }
+                ]
+            }
         };
+
+        // Current video set (subdirectory in videos/)
+        this.currentSet = 'tiktok/set1';
+
+        // Load configuration for current set
+        this.loadVideoSet(this.currentSet);
 
         this.init();
     }
 
+    loadVideoSet(setName) {
+        const config = this.videoSets[setName];
+        if (!config) {
+            console.error(`Video set '${setName}' not found`);
+            return;
+        }
+
+        this.currentSet = setName;
+        this.videoFiles = config.videos;
+        this.commandMap = config.commands;
+        this.currentVideo = config.defaultVideo;
+
+        console.log(`Loaded video set: ${setName}`, config);
+        console.log(`Available commands: ${Object.keys(config.commands).join(', ')}`);
+    }
+
     init() {
+        // Add video set selector
+        this.createVideoSetSelector();
+
         // Preload all videos first
         this.preloadVideos().then(() => {
             console.log('All videos preloaded');
@@ -58,14 +139,10 @@ class VoiceVideoController {
         this.stopBtn.addEventListener('click', () => this.stopListening());
 
         // Add manual control button listeners
-        const actionButtons = document.querySelectorAll('.action-btn');
-        actionButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const video = e.target.getAttribute('data-video');
-                console.log('Manual button clicked:', video);
-                this.queueVideoSwitch(video);
-            });
-        });
+        this.updateManualControls();
+
+        // Update command list display
+        this.updateCommandList();
 
         // Setup both video players
         [this.videoPlayer1, this.videoPlayer2].forEach(player => {
@@ -87,10 +164,21 @@ class VoiceVideoController {
 
             player.addEventListener('timeupdate', () => {
                 if (player === this.activePlayer && this.queuedVideo) {
-                    // Log when approaching end
+                    // Preload queued video when approaching end
                     const remaining = player.duration - player.currentTime;
-                    if (remaining < 1 && remaining > 0.9) {
+                    if (remaining < 2 && remaining > 1.8) {
                         console.log(`Video ending soon, ${remaining.toFixed(2)}s remaining, queued: ${this.queuedVideo}`);
+
+                        // Ensure queued video is ready
+                        if (!this.preloadedVideos[this.queuedVideo]) {
+                            console.log('Emergency preload of queued video');
+                            const video = document.createElement('video');
+                            video.preload = 'auto';
+                            video.src = `/videos/${this.currentSet}/${this.queuedVideo}`;
+                            video.muted = true;
+                            video.load();
+                            this.preloadedVideos[this.queuedVideo] = video;
+                        }
                     }
                 }
             });
@@ -131,23 +219,129 @@ class VoiceVideoController {
         });
     }
 
+    createVideoSetSelector() {
+        const controlsDiv = document.querySelector('.controls');
+        const selectorDiv = document.createElement('div');
+        selectorDiv.className = 'video-set-selector';
+        selectorDiv.innerHTML = `
+            <label>
+                视频集 Video Set:
+                <select id="videoSetSelect">
+                    ${Object.keys(this.videoSets).map(setName =>
+                        `<option value="${setName}" ${setName === this.currentSet ? 'selected' : ''}>${setName}</option>`
+                    ).join('')}
+                </select>
+            </label>
+        `;
+        controlsDiv.insertBefore(selectorDiv, controlsDiv.firstChild);
+
+        const selector = document.getElementById('videoSetSelect');
+        selector.addEventListener('change', (e) => {
+            this.switchVideoSet(e.target.value);
+        });
+    }
+
+    switchVideoSet(setName) {
+        console.log(`Switching to video set: ${setName}`);
+
+        // Stop listening if active
+        if (this.isListening) {
+            this.stopListening();
+        }
+
+        // Load new configuration
+        this.loadVideoSet(setName);
+
+        // Update UI
+        this.updateManualControls();
+        this.updateCommandList();
+
+        // Reset video players and preloaded videos
+        this.preloadedVideos = {};
+        this.queuedVideo = null;
+        this.queuedVideoEl.textContent = '-';
+
+        this.activePlayer.src = `/videos/${this.currentSet}/${this.currentVideo}`;
+        this.inactivePlayer.src = `/videos/${this.currentSet}/${this.currentVideo}`;
+        this.activePlayer.load();
+        this.inactivePlayer.load();
+
+        // Update status display
+        this.currentVideoEl.textContent = this.currentVideo;
+
+        // Preload new videos
+        this.preloadVideos().then(() => {
+            console.log('New video set loaded');
+            this.updateStatus('Ready - New video set loaded');
+
+            // Start playing
+            this.activePlayer.play().catch(() => {
+                console.log('Autoplay prevented, user interaction required');
+            });
+        });
+    }
+
+    updateManualControls() {
+        const buttonGroup = document.querySelector('.button-group');
+        if (!buttonGroup) return;
+
+        const config = this.videoSets[this.currentSet];
+        buttonGroup.innerHTML = config.buttons.map(btn =>
+            `<button class="action-btn ${btn.class}" data-video="${btn.video}">${btn.label}</button>`
+        ).join('');
+
+        // Re-attach event listeners
+        const actionButtons = buttonGroup.querySelectorAll('.action-btn');
+        actionButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const video = e.target.getAttribute('data-video');
+                console.log('Manual button clicked:', video);
+                this.queueVideoSwitch(video);
+            });
+        });
+    }
+
+    updateCommandList() {
+        const commandsList = document.querySelector('.commands ul');
+        if (!commandsList) return;
+
+        const config = this.videoSets[this.currentSet];
+
+        // Generate list items showing button label -> video file
+        commandsList.innerHTML = config.buttons.map(btn =>
+            `<li><strong>${btn.label}</strong> → ${btn.video}</li>`
+        ).join('');
+    }
+
     async preloadVideos() {
+        // Ensure preloadedVideos is initialized
+        if (!this.preloadedVideos) {
+            this.preloadedVideos = {};
+        }
+
         const preloadPromises = this.videoFiles.map(videoFile => {
             return new Promise((resolve, reject) => {
                 const video = document.createElement('video');
                 video.preload = 'auto';
                 video.src = `/videos/${this.currentSet}/${videoFile}`;
 
-                video.addEventListener('loadeddata', () => {
+                const onLoadedData = () => {
+                    video.removeEventListener('loadeddata', onLoadedData);
+                    video.removeEventListener('error', onError);
                     this.preloadedVideos[videoFile] = video;
                     console.log(`Preloaded: ${this.currentSet}/${videoFile}`);
                     resolve();
-                });
+                };
 
-                video.addEventListener('error', (e) => {
+                const onError = (e) => {
+                    video.removeEventListener('loadeddata', onLoadedData);
+                    video.removeEventListener('error', onError);
                     console.error(`Error preloading ${videoFile}:`, e);
                     reject(e);
-                });
+                };
+
+                video.addEventListener('loadeddata', onLoadedData);
+                video.addEventListener('error', onError);
 
                 // Start loading
                 video.load();
@@ -195,16 +389,14 @@ class VoiceVideoController {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
 
-        const languageSelect = document.getElementById('languageSelect');
-        const selectedLang = languageSelect ? languageSelect.value : 'zh-CN';
-
-        // Mobile-optimized settings
+        // Mobile-optimized settings with Chinese by default
         this.recognition.continuous = false; // Better for mobile - one phrase at a time
         this.recognition.interimResults = true;
-        this.recognition.lang = selectedLang;
-        this.recognition.maxAlternatives = 5; // More alternatives for better matching
+        this.recognition.lang = 'zh-CN'; // Default to Chinese
+        this.recognition.maxAlternatives = 10; // Increased to get more alternatives for better matching
 
-        console.log('Starting recognition with language:', selectedLang);
+        console.log('Starting recognition with language: zh-CN');
+        console.log('Valid commands:', Object.keys(this.commandMap));
 
         this.recognition.onresult = (event) => {
             const last = event.results.length - 1;
@@ -215,13 +407,13 @@ class VoiceVideoController {
                 let matched = false;
                 for (let i = 0; i < result.length; i++) {
                     const text = result[i].transcript.trim();
-                    console.log(`Alternative ${i}: ${text} (confidence: ${result[i].confidence})`);
+                    console.log(`Alternative ${i}: "${text}" (confidence: ${result[i].confidence})`);
 
                     if (!matched) {
-                        this.recognizedEl.textContent = text;
                         // Try to match this alternative
                         if (this.tryProcessCommand(text)) {
                             matched = true;
+                            this.recognizedEl.textContent = `✓ ${text}`;
                             console.log(`Matched with alternative ${i}`);
                         }
                     }
@@ -229,6 +421,9 @@ class VoiceVideoController {
 
                 if (!matched) {
                     console.log('No match found in any alternative');
+                    // Show the first alternative but indicate no match
+                    const text = result[0].transcript.trim();
+                    this.recognizedEl.textContent = `✗ ${text}`;
                 }
             } else {
                 // Show interim results
@@ -287,17 +482,47 @@ class VoiceVideoController {
         const chars = text.split('');
         const words = lowerText.split(/\s+/);
 
-        for (const [command, video] of Object.entries(this.commandMap)) {
-            const lowerCommand = command.toLowerCase();
+        // Get all valid commands from the current configuration
+        const validCommands = Object.keys(this.commandMap);
 
-            if (lowerText.includes(lowerCommand) ||
-                chars.includes(command) ||
-                words.includes(lowerCommand)) {
-                console.log(`Command matched: ${command} -> ${video}`);
+        console.log('Valid commands for current set:', validCommands);
+        console.log('Trying to match:', text);
+
+        // First, try exact character match (for single Chinese characters)
+        for (const char of chars) {
+            if (validCommands.includes(char)) {
+                const video = this.commandMap[char];
+                console.log(`Exact character match: ${char} -> ${video}`);
                 this.queueVideoSwitch(video);
                 return true;
             }
         }
+
+        // Then try exact word match
+        for (const word of words) {
+            const lowerWord = word.toLowerCase();
+            for (const command of validCommands) {
+                if (lowerWord === command.toLowerCase()) {
+                    const video = this.commandMap[command];
+                    console.log(`Exact word match: ${command} -> ${video}`);
+                    this.queueVideoSwitch(video);
+                    return true;
+                }
+            }
+        }
+
+        // Finally, try substring match (for commands within longer text)
+        for (const command of validCommands) {
+            const lowerCommand = command.toLowerCase();
+            if (lowerText.includes(lowerCommand) || chars.includes(command)) {
+                const video = this.commandMap[command];
+                console.log(`Substring match: ${command} -> ${video}`);
+                this.queueVideoSwitch(video);
+                return true;
+            }
+        }
+
+        console.log('No match found for:', text);
         return false;
     }
 
@@ -318,6 +543,22 @@ class VoiceVideoController {
         console.log(`Queueing video: ${videoFile}, will switch when current video ends`);
         this.queuedVideo = videoFile;
         this.queuedVideoEl.textContent = videoFile;
+
+        // Preload the queued video for instant switching
+        if (!this.preloadedVideos[videoFile]) {
+            console.log(`Preloading queued video: ${videoFile}`);
+            const video = document.createElement('video');
+            video.preload = 'auto';
+            video.src = `/videos/${this.currentSet}/${videoFile}`;
+            video.muted = true;
+
+            video.addEventListener('loadeddata', () => {
+                this.preloadedVideos[videoFile] = video;
+                console.log(`Queued video preloaded: ${videoFile}`);
+            });
+
+            video.load();
+        }
 
         // DO NOT switch immediately - always wait for video to end
         // The switch will happen in onVideoEnded() when the current video finishes
@@ -344,13 +585,24 @@ class VoiceVideoController {
         this.isSwitching = true;
         console.log(`Starting switch to ${videoToPlay}`);
 
-        // Prepare the inactive player with the new video
-        this.inactivePlayer.src = `/videos/${this.currentSet}/${videoToPlay}`;
-        this.inactivePlayer.load();
+        // Use preloaded video if available, otherwise load it
+        const preloadedVideo = this.preloadedVideos[videoToPlay];
+
+        if (preloadedVideo) {
+            console.log('Using preloaded video');
+            // Clone the preloaded video source to the inactive player
+            this.inactivePlayer.src = preloadedVideo.src;
+            this.inactivePlayer.load();
+        } else {
+            console.log('Loading video on demand');
+            this.inactivePlayer.src = `/videos/${this.currentSet}/${videoToPlay}`;
+            this.inactivePlayer.load();
+        }
 
         // Wait for the new video to be ready
         const onCanPlay = () => {
             this.inactivePlayer.removeEventListener('canplay', onCanPlay);
+            this.inactivePlayer.removeEventListener('error', onError);
             console.log('New video ready to play');
 
             // Start playing the new video
@@ -374,26 +626,39 @@ class VoiceVideoController {
 
                     this.isSwitching = false;
                     console.log('Video switch complete, new active video:', videoToPlay);
-                }, 300); // Match CSS transition duration
+                }, 500); // Increased from 300ms for smoother transition
             }).catch(err => {
                 console.error('Error playing new video:', err);
                 this.isSwitching = false;
             });
         };
 
+        const onError = (e) => {
+            this.inactivePlayer.removeEventListener('canplay', onCanPlay);
+            this.inactivePlayer.removeEventListener('error', onError);
+            console.error('Error loading video:', e);
+            this.isSwitching = false;
+        };
+
         this.inactivePlayer.addEventListener('canplay', onCanPlay);
+        this.inactivePlayer.addEventListener('error', onError);
     }
 
     onVideoEnded() {
         console.log('onVideoEnded called, queuedVideo:', this.queuedVideo);
         if (this.queuedVideo) {
             console.log('Switching to queued video:', this.queuedVideo);
-            this.switchVideo();
+            // Small delay to ensure smooth transition
+            setTimeout(() => {
+                this.switchVideo();
+            }, 50);
         } else {
-            // Loop current video
+            // Loop current video with seamless restart
             console.log('No queued video, looping current video');
             this.activePlayer.currentTime = 0;
-            this.activePlayer.play();
+            this.activePlayer.play().catch(() => {
+                console.error('Error looping video');
+            });
         }
     }
 

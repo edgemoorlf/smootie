@@ -37,6 +37,10 @@ h1 {
     background: #000;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     pointer-events: none; /* Prevent clicks on container */
+    /* Ensure smooth rendering */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
 }
 
 .video-layer {
@@ -48,7 +52,13 @@ h1 {
     display: block;
     pointer-events: none; /* Prevent clicks on video */
     opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.5s ease-in-out;
+    /* Hardware acceleration for smoother transitions */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: opacity;
 }
 
 .video-layer.active {
@@ -70,22 +80,15 @@ h1 {
     margin-bottom: 30px;
 }
 
-.recognition-mode {
+.video-set-selector {
     margin-bottom: 20px;
 }
 
-.recognition-mode label {
-    margin: 0 15px;
+.video-set-selector label {
     font-size: 1.1em;
-    cursor: pointer;
 }
 
-.recognition-mode input[type="radio"] {
-    margin-right: 5px;
-    cursor: pointer;
-}
-
-#languageSelect {
+#videoSetSelect {
     padding: 5px 10px;
     font-size: 1em;
     border: 2px solid #667eea;
@@ -230,6 +233,11 @@ h1 {
     font-weight: 600;
 }
 
+#recognized {
+    color: #333;
+    font-weight: 600;
+}
+
 .commands {
     background: #e8eaf6;
     padding: 20px;
@@ -278,14 +286,5 @@ h1 {
 
     .button-group {
         gap: 10px;
-    }
-
-    .recognition-mode {
-        margin-bottom: 15px;
-    }
-
-    .recognition-mode label {
-        margin: 0 10px;
-        font-size: 1em;
     }
 }
