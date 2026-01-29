@@ -17,15 +17,42 @@ class VoiceVideoController {
         this.queuedVideo = null;
         this.isVideoPlaying = false;
         this.isSwitching = false;
+        this.idleVideo = null; // Will be set when loading video set
 
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
 
         // Video set configurations
         this.videoSets = {
+            'tiktok/set3': {
+                videos: ['7.mp4', '8.mp4', '9.mp4'],
+                defaultVideo: '7.mp4',
+                idleVideo: '7.mp4', // Anchor/idle video that loops
+                commands: {
+                    'stop': '7.mp4',
+                    '停': '7.mp4',
+                    '听': '7.mp4',
+                    '挺': '7.mp4',
+                    '庭': '7.mp4',
+                    'shake': '8.mp4',
+                    '抖': '8.mp4',
+                    '斗': '8.mp4',
+                    '豆': '8.mp4',
+                    'twist': '9.mp4',
+                    '扭': '9.mp4',
+                    '纽': '9.mp4',
+                    '牛': '9.mp4'
+                },
+                buttons: [
+                    { label: '停', video: '7.mp4', class: 'stop-btn' },
+                    { label: '抖', video: '8.mp4', class: 'circle-btn' },
+                    { label: '扭', video: '9.mp4', class: 'jump-btn' }
+                ]
+            },
             'tiktok/set1': {
                 videos: ['1.mp4', '2.mp4', '3.mp4'],
                 defaultVideo: '1.mp4',
+                idleVideo: '1.mp4', // Anchor/idle video that loops
                 commands: {
                     'jump': '1.mp4',
                     '跳': '1.mp4',
@@ -51,6 +78,7 @@ class VoiceVideoController {
             'tiktok/set2': {
                 videos: ['4.mp4', '5.mp4', '6.mp4'],
                 defaultVideo: '6.mp4',
+                idleVideo: '6.mp4', // Anchor/idle video that loops
                 commands: {
                     'jump': '4.mp4',
                     '跳': '4.mp4',
@@ -76,6 +104,7 @@ class VoiceVideoController {
             'default': {
                 videos: ['idle.mov', 'jump.mov', 'circle.mov'],
                 defaultVideo: 'idle.mov',
+                idleVideo: 'idle.mov', // Anchor/idle video that loops
                 commands: {
                     'jump': 'jump.mov',
                     '跳': 'jump.mov',
@@ -101,7 +130,7 @@ class VoiceVideoController {
         };
 
         // Current video set (subdirectory in videos/)
-        this.currentSet = 'tiktok/set1';
+        this.currentSet = 'tiktok/set3';
 
         // Load configuration for current set
         this.loadVideoSet(this.currentSet);
@@ -120,9 +149,11 @@ class VoiceVideoController {
         this.videoFiles = config.videos;
         this.commandMap = config.commands;
         this.currentVideo = config.defaultVideo;
+        this.idleVideo = config.idleVideo; // Store the idle/anchor video
 
         console.log(`Loaded video set: ${setName}`, config);
         console.log(`Available commands: ${Object.keys(config.commands).join(', ')}`);
+        console.log(`Idle video: ${this.idleVideo}`);
     }
 
     init() {
@@ -540,6 +571,12 @@ class VoiceVideoController {
             return;
         }
 
+        // If trying to queue the idle video while it's already playing, ignore
+        if (videoFile === this.idleVideo && this.currentVideo === this.idleVideo) {
+            console.log('Idle video already playing, ignoring queue request');
+            return;
+        }
+
         console.log(`Queueing video: ${videoFile}, will switch when current video ends`);
         this.queuedVideo = videoFile;
         this.queuedVideoEl.textContent = videoFile;
@@ -646,6 +683,8 @@ class VoiceVideoController {
 
     onVideoEnded() {
         console.log('onVideoEnded called, queuedVideo:', this.queuedVideo);
+        console.log('Current video:', this.currentVideo, 'Idle video:', this.idleVideo);
+
         if (this.queuedVideo) {
             console.log('Switching to queued video:', this.queuedVideo);
             // Small delay to ensure smooth transition
@@ -653,12 +692,22 @@ class VoiceVideoController {
                 this.switchVideo();
             }, 50);
         } else {
-            // Loop current video with seamless restart
-            console.log('No queued video, looping current video');
-            this.activePlayer.currentTime = 0;
-            this.activePlayer.play().catch(() => {
-                console.error('Error looping video');
-            });
+            // Check if current video is the idle video
+            if (this.currentVideo === this.idleVideo) {
+                // Loop the idle video
+                console.log('Looping idle video:', this.idleVideo);
+                this.activePlayer.currentTime = 0;
+                this.activePlayer.play().catch(() => {
+                    console.error('Error looping idle video');
+                });
+            } else {
+                // Non-idle video ended, return to idle video
+                console.log('Non-idle video ended, returning to idle video:', this.idleVideo);
+                this.queuedVideo = this.idleVideo;
+                setTimeout(() => {
+                    this.switchVideo();
+                }, 50);
+            }
         }
     }
 
