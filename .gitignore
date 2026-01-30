@@ -23,64 +23,58 @@ wheels/
 .installed.cfg
 *.egg
 
-# Environment variables
-.env
-.env.local
+# Flask
+instance/
+.webassets-cache
 
-# Video files (large files, don't commit to git)
-videos/*.mp4
-videos/*.mov
-videos/*.avi
-videos/*.webm
-videos/original/
-videos/processed/
-videos/final/
-
-# Keep example videos or placeholders
-!videos/.gitkeep
-!videos/README.md
-
-# Backup files
-backups/
-*.backup
-*_backup.*
-
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
 
 # Logs
 *.log
 
+# Environment
+.env
+.env.local
+
 # Temporary files
-tmp/
-temp/
 *.tmp
+*.bak
+*.orig
 
-# Downloaded video metadata
-*.json
-*.info.json
+# Video files (large)
+videos/**/*.mp4
+videos/**/*.mov
+videos/**/*.avi
+!videos/README.md
 
-# Flask
-instance/
-.webassets-cache
+# Audio working files (keep MP3s)
+audio/**/*.aiff
+audio/**/*.wav
+!audio/**/*.mp3
+!audio/README.md
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+# Documentation (keep only main docs)
+*_SUMMARY.md
+*_COMPLETE.md
+*_FIX.md
+*_GUIDE.md
+TODO_*.md
+QUICK_START_*.md
+VOICE_ACK.md
+VOICE_ACK_IMPLEMENTATION.md
+PHASE*.md
+PROGRESS*.md
+IMPLEMENTATION_SUMMARY.md
 
-# Documentation builds
-docs/_build/
+# Keep these docs
+!README.md
+!CHANGELOG.md
+!IMPLEMENTATION_COMPLETE.md
+!config/README.md
+!audio/README.md

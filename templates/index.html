@@ -33,13 +33,13 @@
 
         <div class="status">
             <div class="status-item">
-                <strong>状态:</strong> <span id="status">Ready</span>
+                <strong>状态:</strong> <span id="status">Loading configuration...</span>
             </div>
             <div class="status-item">
                 <strong>识别内容:</strong> <span id="recognized">-</span>
             </div>
             <div class="status-item">
-                <strong>当前视频:</strong> <span id="currentVideo">7.mp4</span>
+                <strong>当前视频:</strong> <span id="currentVideo">-</span>
             </div>
             <div class="status-item">
                 <strong>队列视频:</strong> <span id="queuedVideo">-</span>
@@ -54,6 +54,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='config-loader.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

@@ -1,211 +1,636 @@
 # Smootie - 声控动作视频播放器
 
-基于浏览器语音识别的视频切换应用。
+基于浏览器语音识别的视频切换应用，支持语音确认反馈。
 
-A web-based voice-controlled video player that switches videos based on voice commands using browser speech recognition.
+A web-based voice-controlled video player with audio acknowledgement that switches videos based on voice commands using browser speech recognition.
 
-## 功能特性 (Features)
+## ✨ 新功能 v2.0.0 (New in v2.0.0)
 
-- 浏览器语音识别控制视频切换 (Browser voice recognition for video switching)
-- 支持中英文指令 (Supports Chinese and English commands)
-- 手动按钮控制 (Manual button controls for mobile)
-- 视频预加载，无缝切换 (Preloaded videos for smooth transitions)
-- 双视频层淡入淡出效果 (Dual video layer cross-fade effect)
-- 队列系统：随时接受指令，视频结束时切换 (Queue system with latest command override)
+🎉 **语音确认功能 (Voice Acknowledgement Feature)** - 系统现在会在识别到语音指令时播放音频反馈！
 
-## 语音指令 (Voice Commands)
+- 🔊 **音频反馈 (Audio Feedback)**: 命令识别成功时播放确认音
+- 🎛️ **音量控制 (Volume Control)**: 可调节音量或完全静音
+- 🌐 **多语言支持 (Multi-language)**: 支持中文和英文确认音
+- ⚙️ **外部配置 (External Config)**: JSON配置文件，易于定制
+- 📱 **移动友好 (Mobile Friendly)**: 桌面和移动设备均可使用
+- 🎯 **同音字匹配 (Homophone Matching)**: 智能识别相似发音的词（如"读起来"→"抖"）
 
-### 基础指令 (Basic Commands)
+## 项目概述 (Project Overview)
 
-| 指令 | 英文 | 相似音 | 动作 |
-|------|------|--------|------|
-| 跳 | jump | 条/调 | 切换到 jump.mov |
-| 转 | circle | 赚/传/专 | 切换到 circle.mov |
-| 停 | stop | 听/挺/庭 | 切换到 idle.mov |
+Smootie 是一个基于浏览器语音识别的声控视频播放器，可以通过语音指令无缝切换视频。支持多视频集配置，每个视频集有独立的语音命令映射。采用双视频层技术实现完全无缝的视频切换，支持idle/anchor视频循环和动作视频单次播放。
 
-### 识别逻辑 (Recognition Logic)
+Smootie is a voice-controlled video player using browser speech recognition for seamless video switching. It supports multiple configurable video sets with independent voice command mappings. Uses dual video layer technology for completely seamless transitions, with idle/anchor video looping and action videos playing once.
 
-为了提高识别准确率，系统采用以下策略：
+## 核心功能 (Core Features)
 
-1. **相似音字符匹配**：由于中文同音字较多，系统会识别相似发音的字符
-   - 例如："停" 可能被识别为 "听"、"挺"、"庭"，系统都会正确处理
+### 1. 语音识别 (Voice Recognition)
+- ✅ 浏览器 Web Speech API 集成
+- ✅ 默认中文识别，支持模糊匹配
+- ✅ 同音字智能匹配（如：停/听/挺/庭，抖/斗/豆/读，扭/纽/牛）
+- ✅ 短语变体支持（如："抖起来"、"读起来"都能触发"抖"命令）
+- ✅ 多候选结果检查（最多10个）
+- ✅ 字符级精确匹配
+- ✅ 词汇限制到配置的命令
+- ✅ 视觉反馈（✓/✗ 显示匹配状态）
+- ✅ 移动端优化
 
-2. **多候选结果检查**：检查语音识别返回的多个候选结果（最多5个）
-   - 提高命中率，即使第一候选不匹配也能找到正确指令
+### 2. 视频播放 (Video Playback)
+- ✅ 双视频层技术（完全无缝切换）
+- ✅ 500ms 淡入淡出效果（硬件加速）
+- ✅ 智能视频预加载
+- ✅ Idle/Anchor 视频循环播放
+- ✅ 动作视频单次播放后返回idle
+- ✅ 队列系统（最新指令覆盖）
+- ✅ 完全无黑屏切换
 
-3. **字符级匹配**：不仅匹配完整词语，还会检查单个字符
-   - 即使识别结果包含其他词语，只要包含指令字符就能匹配
+### 3. 多视频集支持 (Multiple Video Sets)
+- ✅ 可配置的视频集系统
+- ✅ 每个视频集独立的命令映射
+- ✅ 每个视频集独立的按钮配置
+- ✅ 动态UI更新
+- ✅ 下拉选择器切换视频集
+- ✅ 当前支持：tiktok/set1, tiktok/set2, tiktok/set3, default
 
-4. **移动端优化**：
-   - 使用非连续模式（一次识别一个短语）
-   - 增加识别延迟以适应移动设备性能
-   - 提供手动按钮作为备选方案
+### 4. 语音确认 (Voice Acknowledgement) 🆕
+- ✅ 命令成功时播放确认音
+- ✅ 命令失败时播放错误提示音
+- ✅ 命令特定音频（如"停"、"抖"、"扭"）
+- ✅ 通用确认音（随机选择）
+- ✅ 音频预加载（无延迟播放）
+- ✅ 音量控制和静音功能
+- ✅ 不干扰视频播放和语音识别
 
-## 安装配置 (Setup)
+### 5. 用户界面 (User Interface)
+- ✅ 手动控制按钮（移动端友好）
+- ✅ 音频控制面板（音量、静音、开关）🆕
+- ✅ 实时状态显示
+- ✅ 视频集选择器
+- ✅ 动作列表显示
+- ✅ 响应式设计
+- ✅ 触摸优化
 
-### 环境要求 (Prerequisites)
+### 6. 移动端支持 (Mobile Support)
+- ✅ 防止全屏模式
+- ✅ 触摸友好按钮
+- ✅ 优化识别设置
+- ✅ 手动控制备选方案
+- ✅ 音频播放支持
 
-- Python 3.8+
-- 现代浏览器（Chrome/Edge，支持 Web Speech API）
-- 麦克风权限
+## 当前视频集配置 (Current Video Set Configuration)
 
-### 安装步骤 (Installation)
+### tiktok/set3 (默认 Default)
+| 命令 | 相似音/短语 | 视频 | 说明 |
+|------|-------------|------|------|
+| 停 (stop) | 听/挺/庭 | 7.mp4 | Idle/Anchor 视频（循环） |
+| 抖 (shake) | 斗/豆/读/读起来/抖起来/都 | 8.mp4 | 动作视频（单次播放） |
+| 扭 (twist) | 纽/牛 | 9.mp4 | 动作视频（单次播放） |
 
-1. 克隆仓库：
-```bash
-git clone <repository-url>
-cd smootie
-```
+### tiktok/set1
+| 命令 | 相似音 | 视频 | 说明 |
+|------|--------|------|------|
+| 跳 (jump) | 条/调 | 1.mp4 | Idle/Anchor 视频（循环） |
+| 转 (circle) | 赚/传/专 | 2.mp4 | 动作视频（单次播放） |
+| 停 (stop) | 听/挺/庭 | 3.mp4 | 动作视频（单次播放） |
 
-2. 安装 Python 依赖：
-```bash
-pip install -r requirements.txt
-```
+### tiktok/set2
+| 命令 | 相似音 | 视频 | 说明 |
+|------|--------|------|------|
+| 跳 (jump) | 条/调 | 4.mp4 | 动作视频（单次播放） |
+| 转 (circle) | 赚/传/专 | 5.mp4 | 动作视频（单次播放） |
+| 停 (stop) | 听/挺/庭 | 6.mp4 | Idle/Anchor 视频（循环） |
 
-### 运行应用 (Running)
+## 视频播放逻辑 (Video Playback Logic)
 
-1. 启动 Flask 服务器：
-```bash
-python app.py
-```
+### Idle/Anchor 视频系统
+- **Idle视频**: 每个视频集有一个指定的idle/anchor视频
+- **循环播放**: Idle视频会持续循环播放
+- **动作视频**: 其他视频播放一次后自动返回idle视频
+- **自然流程**: 角色保持idle状态 → 执行动作 → 返回idle状态
 
-2. 打开浏览器访问：
-```
-http://localhost:5001
-```
+### 工作流程
+1. 应用启动时播放idle视频（如set3的7.mp4）
+2. 用户说出命令或点击按钮
+3. 当前视频播放完毕后切换到目标视频
+4. 如果是动作视频，播放完毕后自动返回idle视频
+5. 如果是idle视频，持续循环播放
 
-3. 点击"开始监听"并授予麦克风权限
+## 技术架构 (Technical Architecture)
 
-4. 说出指令或点击手动按钮控制视频
+### 前端 (Frontend)
+- **HTML5** - 结构和视频元素
+- **CSS3** - 样式和动画（硬件加速的淡入淡出）
+- **JavaScript (ES6)** - 核心逻辑
+  - Web Speech API 集成
+  - 双视频层管理
+  - 命令处理和匹配
+  - 队列系统
+  - 多视频集配置系统
+
+### 后端 (Backend)
+- **Flask** - Python web 框架
+- **Flask-CORS** - 跨域支持
+- 极简设计（仅提供静态文件和视频）
+
+### 视频处理 (Video Processing)
+- **ffmpeg** - 视频处理工具
+- **yt-dlp** - 视频下载工具
 
 ## 项目结构 (Project Structure)
 
 ```
 smootie/
-├── app.py                 # Flask 后端服务器
-├── requirements.txt       # Python 依赖
+├── app.py                          # Flask 后端服务器
+├── requirements.txt                # Python 依赖
+├── requirements-video-search.txt   # 视频搜索工具依赖
+│
+├── config/                         # 配置文件 (NEW in v2.0)
+│   ├── videosets.json             # 视频集配置
+│   └── README.md                   # 配置文档
+│
 ├── templates/
-│   └── index.html        # 主页面
+│   └── index.html                  # 主页面
+│
 ├── static/
-│   ├── app.js            # 前端逻辑
-│   └── style.css         # 样式
-└── videos/
-    ├── idle.mov          # 默认/停止视频
-    ├── jump.mov          # 跳跃动作视频
-    └── circle.mov        # 转圈动作视频
+│   ├── config-loader.js            # 配置加载器 (NEW in v2.0)
+│   ├── app.js                      # 前端逻辑（核心）
+│   └── style.css                   # 样式
+│
+├── audio/                          # 音频文件 (NEW in v2.0) ✅
+│   ├── common/                     # 通用确认音
+│   │   ├── acknowledged_zh.mp3    # "好的"
+│   │   ├── received_zh.mp3        # "收到"
+│   │   ├── understood_zh.mp3      # "明白"
+│   │   ├── ok_zh.mp3              # "嗯"
+│   │   ├── acknowledged_en.mp3    # "OK"
+│   │   ├── received_en.mp3        # "Got it"
+│   │   └── error_zh.mp3           # "没听清"
+│   ├── tiktok/
+│   │   ├── set1/                  # Set 1 音频
+│   │   │   ├── jump_zh.mp3
+│   │   │   ├── circle_zh.mp3
+│   │   │   └── stop_zh.mp3
+│   │   ├── set2/                  # Set 2 音频
+│   │   │   ├── jump_zh.mp3
+│   │   │   ├── circle_zh.mp3
+│   │   │   └── stop_zh.mp3
+│   │   └── set3/                  # Set 3 音频
+│   │       ├── stop_zh.mp3
+│   │       ├── shake_zh.mp3
+│   │       └── twist_zh.mp3
+│   ├── README.md                   # 音频规格说明
+│   └── generate_audio.sh           # 音频生成脚本 ✅
+│
+├── videos/
+│   ├── tiktok/
+│   │   ├── set1/                   # 视频集1
+│   │   │   ├── 1.mp4
+│   │   │   ├── 2.mp4
+│   │   │   └── 3.mp4
+│   │   ├── set2/                   # 视频集2
+│   │   │   ├── 4.mp4
+│   │   │   ├── 5.mp4
+│   │   │   └── 6.mp4
+│   │   └── set3/                   # 视频集3
+│   │       ├── 7.mp4
+│   │       ├── 8.mp4
+│   │       └── 9.mp4
+│   ├── default/
+│   │   ├── idle.mov
+│   │   ├── jump.mov
+│   │   └── circle.mov
+│   └── README.md                   # 视频目录说明
+│
+├── search_videos.py                # 视频搜索下载工具
+├── video_search.sh                 # 交互式搜索脚本
+│
+├── README.md                       # 本文档
+├── VOICE_ACK.md                    # 语音确认功能计划
+├── VOICE_ACK_IMPLEMENTATION.md     # 实现总结 ✅
+├── TODO_VOICE_ACK.md               # 任务追踪
+├── QUICK_REFERENCE.md              # 快速参考
+├── LICENSE                         # MIT 许可证
+└── .gitignore                      # Git 忽略规则
 ```
 
-## 工作原理 (How It Works)
+## 配置系统 (Configuration System) 🆕
 
-### 视频切换逻辑
+### 外部配置文件 (External Configuration)
 
-1. **初始状态**：应用启动时播放 `idle.mov`
-2. **双视频层技术**：使用两个视频元素层叠，实现无缝切换
-3. **视频预加载**：页面加载时预加载所有视频到内存
-4. **语音识别**：持续监听语音输入
-5. **指令队列**：
-   - 识别到指令后，将目标视频加入队列
-   - 新指令会覆盖之前的队列
-   - 当前视频播放完毕后切换到队列中的视频
-6. **平滑过渡**：
-   - 在后台视频层加载新视频
-   - 使用 CSS 淡入淡出效果（300ms）
-   - 新视频开始播放后，旧视频淡出
-   - 完全无黑屏，移动端体验流畅
+从 v2.0 开始，所有视频集配置已移至外部 JSON 文件，便于维护和扩展。
 
-### 识别流程
+Starting from v2.0, all video set configurations have been moved to external JSON files for easier maintenance and extensibility.
 
+**配置文件位置**: `config/videosets.json`
+
+### 配置结构 (Configuration Structure)
+
+```json
+{
+  "version": "2.0.0",
+  "defaultSet": "tiktok/set3",
+  "sets": {
+    "set-id": {
+      "id": "string",
+      "name": "Display Name",
+      "description": "Description",
+      "videos": [
+        {
+          "id": "video-id",
+          "path": "/videos/path/to/video.mp4",
+          "name": "Video Name",
+          "description": "Video description",
+          "duration": 5.2,
+          "isIdle": true,
+          "tags": ["tag1", "tag2"]
+        }
+      ],
+      "defaultVideo": "video-id",
+      "idleVideo": "video-id",
+      "commands": {
+        "command-id": {
+          "video": "video-id",
+          "keywords": ["keyword1", "keyword2"],
+          "description": "Command description",
+          "primaryKeyword": "keyword1"
+        }
+      },
+      "buttons": [
+        {
+          "label": "Button Label",
+          "video": "video-id",
+          "class": "css-class",
+          "tooltip": "Tooltip text"
+        }
+      ],
+      "audioAck": {
+        "enabled": true,
+        "volume": 0.7,
+        "generic": ["/audio/common/acknowledged_zh.mp3"],
+        "specific": {
+          "命令": "/audio/path/command_zh.mp3"
+        },
+        "error": "/audio/common/error_zh.mp3"
+      }
+    }
+  }
+}
 ```
-用户说话 → 语音识别 → 获取多个候选结果 → 逐个匹配指令
-    ↓
-匹配成功 → 加入队列 → 等待当前视频结束 → 切换视频
-    ↓
-匹配失败 → 继续监听
+
+### 添加新视频集 (Adding New Video Sets)
+
+1. **准备视频文件**
+   ```bash
+   mkdir -p videos/my-set
+   # 将视频文件复制到 videos/my-set/
+   ```
+
+2. **编辑配置文件**
+
+   打开 `config/videosets.json` 并添加新的视频集配置：
+
+   ```json
+   {
+     "sets": {
+       "my-set": {
+         "id": "my-set",
+         "name": "My Custom Set",
+         "description": "My custom video set",
+         "videos": [
+           {
+             "id": "video1.mp4",
+             "path": "/videos/my-set/video1.mp4",
+             "name": "Video 1",
+             "description": "First video",
+             "duration": 5.0,
+             "isIdle": true,
+             "tags": ["idle"]
+           }
+         ],
+         "defaultVideo": "video1.mp4",
+         "idleVideo": "video1.mp4",
+         "commands": {
+           "action1": {
+             "video": "video1.mp4",
+             "keywords": ["action1", "动作1"],
+             "description": "First action",
+             "primaryKeyword": "action1"
+           }
+         },
+         "buttons": [
+           {
+             "label": "动作1",
+             "video": "video1.mp4",
+             "class": "action-btn",
+             "tooltip": "Action 1"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+3. **刷新浏览器**
+
+   新视频集将自动出现在下拉选择器中。
+
+**详细文档**: 查看 `config/README.md` 了解完整的配置指南。
+
+## 安装和运行 (Installation & Running)
+
+### 环境要求 (Prerequisites)
+- Python 3.8+
+- 现代浏览器（Chrome/Edge，支持 Web Speech API）
+- 麦克风权限
+
+### 快速开始 (Quick Start)
+
+```bash
+# 1. 克隆仓库
+git clone <repository-url>
+cd smootie
+
+# 2. 安装 Python 依赖
+pip install -r requirements.txt
+
+# 3. 生成音频文件（可选，已包含示例音频）
+chmod +x generate_audio.sh
+./generate_audio.sh
+
+# 4. 运行服务器
+python app.py
+
+# 5. 打开浏览器
+# 访问 http://localhost:5001
+
+# 6. 开始使用
+# 点击"开始监听"并说出指令
+# 调整音量或静音（如需要）
 ```
 
-### 移动端支持
+## 关键技术实现 (Key Technical Implementations)
 
-- **手动控制**：提供大按钮用于手动切换
-- **优化识别**：使用非连续模式，更适合移动设备
-- **触摸友好**：按钮大小和间距适配触摸操作
+### 1. 双视频层切换 (Dual Video Layer Switching)
+
+**问题**: 传统方法改变 `src` 会导致黑屏
+
+**解决方案**:
+- 使用两个视频元素层叠
+- 一个显示（active），一个隐藏（inactive）
+- 新视频在后台加载
+- CSS 淡入淡出过渡（500ms，硬件加速）
+- 加载完成后交换角色
+
+**代码实现**:
+```javascript
+// 使用预加载的视频
+const preloadedVideo = this.preloadedVideos[videoToPlay];
+this.inactivePlayer.src = preloadedVideo.src;
+this.inactivePlayer.load();
+
+// 等待加载完成
+this.inactivePlayer.addEventListener('canplay', () => {
+    // 开始播放新视频
+    this.inactivePlayer.play();
+
+    // CSS 淡入淡出（硬件加速）
+    this.inactivePlayer.classList.add('active');
+    this.activePlayer.classList.remove('active');
+
+    // 500ms 后交换引用
+    setTimeout(() => {
+        this.activePlayer.pause();
+        [this.activePlayer, this.inactivePlayer] =
+            [this.inactivePlayer, this.activePlayer];
+    }, 500);
+});
+```
+
+### 2. 相似音匹配 (Similar Sound Matching)
+
+**问题**: 中文语音识别常出现同音字错误
+
+**解决方案**:
+- 建立相似音映射表
+- 检查多个候选结果（最多10个）
+- 三层匹配策略：精确字符 → 精确词 → 子串
+
+**代码实现**:
+```javascript
+// 每个视频集的命令配置
+commands: {
+    '停': '7.mp4',
+    '听': '7.mp4',  // 相似音
+    '挺': '7.mp4',  // 相似音
+    '庭': '7.mp4',  // 相似音
+    '抖': '8.mp4',
+    '斗': '8.mp4',  // 相似音
+    '豆': '8.mp4',  // 相似音
+}
+
+// 三层匹配策略
+tryProcessCommand(text) {
+    // 1. 精确字符匹配
+    for (const char of chars) {
+        if (validCommands.includes(char)) return true;
+    }
+    // 2. 精确词匹配
+    for (const word of words) {
+        if (validCommands.includes(word)) return true;
+    }
+    // 3. 子串匹配
+    for (const command of validCommands) {
+        if (text.includes(command)) return true;
+    }
+}
+```
+
+### 3. Idle/Anchor 视频系统 (Idle/Anchor Video System)
+
+**问题**: 需要区分循环视频和单次播放视频
+
+**解决方案**:
+- 每个视频集配置 `idleVideo` 属性
+- 视频结束时检查是否为idle视频
+- 非idle视频自动返回idle视频
+
+**代码实现**:
+```javascript
+onVideoEnded() {
+    if (this.queuedVideo) {
+        // 有队列视频，切换
+        this.switchVideo();
+    } else if (this.currentVideo === this.idleVideo) {
+        // 当前是idle视频，循环播放
+        this.activePlayer.currentTime = 0;
+        this.activePlayer.play();
+    } else {
+        // 非idle视频结束，返回idle
+        this.queuedVideo = this.idleVideo;
+        this.switchVideo();
+    }
+}
+```
+
+### 4. 多视频集配置系统 (Multiple Video Sets Configuration)
+
+**问题**: 需要支持多个视频集，每个有不同的命令
+
+**解决方案**:
+- 集中式配置对象 `videoSets`
+- 动态加载视频集配置
+- 自动更新UI（按钮、命令列表）
+
+**代码实现**:
+```javascript
+videoSets: {
+    'tiktok/set3': {
+        videos: ['7.mp4', '8.mp4', '9.mp4'],
+        defaultVideo: '7.mp4',
+        idleVideo: '7.mp4',
+        commands: { /* ... */ },
+        buttons: [ /* ... */ ]
+    },
+    // 更多视频集...
+}
+
+// 切换视频集
+switchVideoSet(setName) {
+    this.loadVideoSet(setName);
+    this.updateManualControls();
+    this.updateCommandList();
+    this.preloadVideos();
+}
+```
+
+### 5. 智能视频预加载 (Smart Video Preloading)
+
+**问题**: 需要即时切换，但不能一次加载所有视频
+
+**解决方案**:
+- 页面加载时预加载当前视频集
+- 队列视频时立即预加载
+- 视频接近结束时确保队列视频已加载
+
+**代码实现**:
+```javascript
+// 队列时预加载
+queueVideoSwitch(videoFile) {
+    if (!this.preloadedVideos[videoFile]) {
+        const video = document.createElement('video');
+        video.src = `/videos/${this.currentSet}/${videoFile}`;
+        video.load();
+        this.preloadedVideos[videoFile] = video;
+    }
+}
+
+// 接近结束时确保加载
+player.addEventListener('timeupdate', () => {
+    const remaining = player.duration - player.currentTime;
+    if (remaining < 2 && this.queuedVideo) {
+        // 确保队列视频已加载
+    }
+});
+```
+
+### 6. 移动端全屏防止 (Mobile Fullscreen Prevention)
+
+**问题**: 移动端点击按钮会触发视频全屏，导致语音识别失效
+
+**解决方案**:
+- HTML 属性: `playsinline`, `webkit-playsinline`
+- CSS: `pointer-events: none` 在视频上
+- JavaScript: 监听并阻止全屏事件
+
+**代码实现**:
+```html
+<video playsinline webkit-playsinline
+       disablePictureInPicture
+       controlsList="nodownload nofullscreen noremoteplayback">
+```
+
+```css
+.video-layer {
+    pointer-events: none;
+    /* 硬件加速 */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: opacity;
+}
+```
+
+```javascript
+player.addEventListener('webkitbeginfullscreen', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+});
+```
+
+## 性能优化 (Performance Optimizations)
+
+### 1. 视频预加载 (Video Preloading)
+- 页面加载时预加载当前视频集
+- 队列时立即预加载目标视频
+- 视频接近结束时确保队列视频已加载
+
+### 2. 硬件加速 (Hardware Acceleration)
+- CSS `transform: translateZ(0)` 强制GPU渲染
+- `backface-visibility: hidden` 优化3D变换
+- `will-change: opacity` 提示浏览器优化
+
+### 3. 文件大小优化 (File Size Optimization)
+- 推荐 720p 分辨率
+- H.264 编码
+- CRF 22-28 质量
+- 移除音频轨道
+- 目标: <5MB 每个视频
+
+### 4. 移动端优化 (Mobile Optimization)
+- 非连续识别模式（一次一个短语）
+- 300ms 重启延迟
+- 触摸友好按钮（大尺寸）
+- 手动控制备选方案
 
 ## 浏览器兼容性 (Browser Compatibility)
 
-| 浏览器 | 语音识别 | 手动控制 | 推荐度 |
-|--------|----------|----------|--------|
-| Chrome (Desktop) | ✅ 完美支持 | ✅ | ⭐⭐⭐⭐⭐ |
-| Edge (Desktop) | ✅ 完美支持 | ✅ | ⭐⭐⭐⭐⭐ |
-| Chrome (Mobile) | ⚠️ 部分支持 | ✅ | ⭐⭐⭐⭐ |
-| Safari | ❌ 不支持 | ✅ | ⭐⭐⭐ |
-| Firefox | ❌ 不支持 | ✅ | ⭐⭐⭐ |
+| 浏览器 | 语音识别 | 视频播放 | 手动控制 | 推荐度 |
+|--------|----------|----------|----------|--------|
+| Chrome (Desktop) | ✅ 完美 | ✅ 完美 | ✅ | ⭐⭐⭐⭐⭐ |
+| Edge (Desktop) | ✅ 完美 | ✅ 完美 | ✅ | ⭐⭐⭐⭐⭐ |
+| Chrome (Mobile) | ⚠️ 部分 | ✅ 完美 | ✅ | ⭐⭐⭐⭐ |
+| Safari | ❌ 不支持 | ✅ 完美 | ✅ | ⭐⭐⭐ |
+| Firefox | ❌ 不支持 | ✅ 完美 | ✅ | ⭐⭐⭐ |
 
-**注意**：
-- 语音识别需要 Web Speech API 支持（Chrome/Edge）
-- 移动端建议使用手动按钮控制，语音识别可能不稳定
-- Safari 和 Firefox 不支持 Web Speech API，只能使用手动按钮
+**注意**:
+- 语音识别需要 Web Speech API（Chrome/Edge）
+- 所有浏览器都支持手动按钮控制
+- 移动端建议使用手动控制
 
-## 调试技巧 (Debugging)
+## 添加新视频集 (Adding New Video Sets)
 
-1. 打开浏览器控制台（F12 或 Cmd+Option+I）
-2. 查看识别日志：
-   - `Recognition started` - 识别已启动
-   - `Recognized (interim): ...` - 临时识别结果
-   - `Recognized (final): ...` - 最终识别结果
-   - `Alternative 0/1/2...` - 候选结果
-   - `Command matched: ...` - 指令匹配成功
+### 方法1: 修改配置文件
 
-## 常见问题 (FAQ)
+编辑 `static/app.js` 中的 `videoSets` 对象:
 
-**Q: 为什么语音识别不工作？**
-- 确保使用 Chrome 或 Edge 浏览器
-- 检查麦克风权限是否授予
-- 查看控制台是否有错误信息
-- 尝试使用手动按钮控制
+```javascript
+'your-set-name': {
+    videos: ['video1.mp4', 'video2.mp4', 'video3.mp4'],
+    defaultVideo: 'video1.mp4',
+    idleVideo: 'video1.mp4',  // 指定idle/anchor视频
+    commands: {
+        'command1': 'video1.mp4',
+        '命令1': 'video1.mp4',
+        '相似音1': 'video1.mp4',
+        // 更多命令...
+    },
+    buttons: [
+        { label: '按钮1', video: 'video1.mp4', class: 'stop-btn' },
+        { label: '按钮2', video: 'video2.mp4', class: 'circle-btn' },
+        { label: '按钮3', video: 'video3.mp4', class: 'jump-btn' }
+    ]
+}
+```
 
-**Q: 为什么说"停"识别成"听"？**
-- 这是正常的，系统已经处理了这种情况
-- "听"、"挺"、"庭"都会被识别为"停"指令
-
-**Q: 移动端识别不准确怎么办？**
-- 使用手动按钮控制
-- 确保在安静环境中使用
-- 说话清晰，语速适中
-
-**Q: 移动端点击"开始监听"后视频进入全屏模式？**
-- 已添加防止全屏的代码
-- 视频设置了 `playsinline` 属性防止自动全屏
-- 如果仍然进入全屏，系统会自动退出
-- 建议使用手动按钮控制，更稳定可靠
-
-**Q: 移动端全屏模式下语音识别不工作？**
-- 大多数移动浏览器在全屏模式下限制语音识别 API
-- 系统会自动防止和退出全屏模式
-- 如果遇到此问题，刷新页面或使用手动按钮
-
-**Q: 移动端视频切换时有黑屏？**
-- 已使用双视频层技术解决
-- 新视频在后台加载，加载完成后淡入
-- 旧视频同时淡出，实现平滑过渡
-- 完全无黑屏，体验流畅
-
-**Q: 视频切换有延迟？**
-- 系统会等待当前视频播放完毕才切换
-- 这是设计行为，确保视频完整播放
-- 切换过程使用 300ms 淡入淡出效果
-
-## 许可证 (License)
-
-MIT License - See LICENSE file for details
-
----
-
-## 扩展：添加新视频 (Extending: Adding New Videos)
-
-### 🎬 视频搜索和下载工具 (Video Search & Download Tool)
-
-项目包含完整的视频搜索工具，帮助你找到合适的循环视频：
-
-#### 快速开始 (Quick Start)
+### 方法2: 使用视频搜索工具
 
 ```bash
 # 1. 安装依赖
@@ -225,92 +650,21 @@ python search_videos.py --action walking --download --url "VIDEO_URL"
 ./video_search.sh
 ```
 
-#### 支持的动作类型 (Supported Actions)
-
-**静态动作 (Static/Idle)** - 带自然呼吸和微动作：
-- `standing` - 站立待机（有呼吸动作）
-- `sitting` - 坐姿待机（有呼吸动作）
-
-**动态动作 (Dynamic)** - 循环动作：
-- `walking` - 行走
-- `running` - 跑步
-- `jumping` - 跳跃
-- `dancing` - 跳舞
-- `waving` - 挥手
-
-**过渡动作 (Transitions)** - 状态切换：
-- `stand_to_sit` - 站立到坐下
-- `sit_to_stand` - 坐下到站立
-- `stand_to_walk` - 站立到行走
-- `walk_to_stand` - 行走到站立
-
 ### 视频要求 (Video Requirements)
 
 #### 必须满足 (Must Have):
 - ✅ 真人拍摄（非动画/CGI）
 - ✅ 时长：2-30秒
 - ✅ 分辨率：720p 或更高
-- ✅ 可循环播放（开始和结束位置相似）
+- ✅ Idle视频：可循环播放（开始和结束位置相似）
 - ✅ 背景简洁
 - ✅ 摄像机稳定
-- ✅ 静态动作：需要自然呼吸和微动作（不是完全静止）
 
 #### 避免 (Avoid):
 - ❌ 摄像机抖动
 - ❌ 复杂背景
 - ❌ 低分辨率
 - ❌ 水印
-- ❌ 静态动作：完全僵硬/静止的姿势
-
-### 视频来源推荐 (Recommended Sources)
-
-**免费素材网站：**
-- **Pexels Videos**: https://www.pexels.com/videos/ (免费，无需署名)
-- **Mixkit**: https://mixkit.co/free-stock-video/ (免费视频片段)
-- **Pixabay**: https://pixabay.com/videos/ (免费素材库)
-- **Videvo**: https://www.videvo.net/ (免费和付费)
-
-**YouTube 搜索技巧：**
-- "person [action] loop green screen"
-- "[action] cycle reference real person"
-- "person standing idle breathing" (静态动作)
-- "human motion reference footage"
-
-### 完整文档 (Complete Documentation)
-
-查看以下文档了解更多：
-
-1. **VIDEO_SEARCH_INSTALLATION.md** - 安装完成确认和快速开始
-2. **VIDEO_SEARCH_QUICKSTART.md** - 快速入门指南
-3. **VIDEO_SEARCH_GUIDE.md** - 完整详细指南
-4. **VIDEO_COMMANDS_REFERENCE.md** - 命令映射和集成参考
-5. **VIDEO_EXAMPLES.md** - 具体示例和链接
-6. **VIDEO_CREDITS.md** - 视频来源和许可证追踪模板
-
-### 工作流程示例 (Workflow Example)
-
-```bash
-# 1. 搜索视频
-python search_videos.py --action walking --preview-only
-
-# 2. 下载视频
-python search_videos.py --action walking --download --url "https://youtube.com/watch?v=..."
-
-# 3. 测试循环（在视频播放器中打开）
-open videos/walking.mp4
-
-# 4. 如需要，优化循环点
-ffmpeg -i videos/walking.mp4 -ss 00:00:02 -to 00:00:08 -c copy videos/walking_loop.mp4
-
-# 5. 更新 static/app.js
-# 添加到 videoFiles 数组和 commandMap
-
-# 6. 更新 templates/index.html
-# 添加到命令列表
-
-# 7. 测试
-python app.py
-```
 
 ### 视频处理技巧 (Video Processing Tips)
 
@@ -328,21 +682,174 @@ ffmpeg -i input.mp4 -vf scale=1280:720 -c:v libx264 -crf 23 -preset slow -an out
 ffmpeg -i input.mov -c:v libx264 -c:a aac output.mp4
 ```
 
-### 许可证合规 (License Compliance)
+## 调试技巧 (Debugging)
 
-**重要提醒：**
-- 始终检查视频许可证
-- 在 `VIDEO_CREDITS.md` 中记录来源
-- 如需要，提供署名
-- 验证是否允许商业使用
-- 保留许可证文档备份
+1. 打开浏览器控制台（F12 或 Cmd+Option+I）
+2. 查看识别日志：
+   - `Starting recognition with language: zh-CN` - 识别已启动
+   - `Valid commands: ...` - 当前有效命令
+   - `Alternative 0: "text" (confidence: 0.9)` - 候选结果
+   - `Exact character match: 停 -> 7.mp4` - 匹配成功
+   - `✓ text` - 命令匹配成功
+   - `✗ text` - 识别但未匹配
 
-### 需要帮助？(Need Help?)
+## 常见问题 (FAQ)
 
-1. 查看 `VIDEO_SEARCH_INSTALLATION.md` 确认安装
-2. 阅读 `VIDEO_SEARCH_QUICKSTART.md` 快速入门
-3. 参考 `VIDEO_SEARCH_GUIDE.md` 详细指南
-4. 查看 `VIDEO_EXAMPLES.md` 具体示例
-5. 检查故障排除部分
+### Q: 为什么语音识别不工作？
+**A**:
+- 确保使用 Chrome 或 Edge 浏览器
+- 检查麦克风权限
+- 查看浏览器控制台错误信息
+- 尝试使用手动按钮
+
+### Q: 为什么说"停"识别成"听"？
+**A**: 这是正常的，系统已经处理了相似音。"听"、"挺"、"庭"都会被识别为"停"指令。
+
+### Q: 为什么说"抖起来"识别成"读起来"？
+**A**: 这也是正常的！系统已经添加了同音字支持。"读起来"、"读"、"都"等相似发音都会被识别为"抖"指令。这是中文语音识别的常见现象，系统通过添加同音字关键词来解决。
+
+### Q: 如何添加新的同音字？
+**A**:
+1. 打开 `config/videosets.json`
+2. 找到对应命令的 `keywords` 数组
+3. 添加新的同音字或短语
+4. 保存并刷新浏览器
+
+示例：
+```json
+"shake": {
+  "keywords": ["shake", "抖", "斗", "豆", "读", "读起来", "抖起来", "都"]
+}
+```
+
+### Q: 中文音频没有声音？
+**A**:
+- 检查音频文件是否存在：`ls audio/common/`
+- 重新生成音频：`./generate_audio.sh`
+- 确保使用了正确的中文语音（Tingting）
+- 检查音量设置和静音状态
+
+### Q: 移动端识别不准确怎么办？
+**A**:
+- 使用手动按钮控制（更可靠）
+- 确保在安静环境中使用
+- 说话清晰，语速适中
+
+### Q: 视频切换有黑屏？
+**A**: 不应该有黑屏。如果出现：
+- 检查浏览器控制台错误
+- 确保视频已预加载
+- 刷新页面重试
+- 检查视频文件是否损坏
+
+### Q: 如何添加新的视频动作？
+**A**:
+1. 准备视频文件并放入 `videos/` 目录
+2. 编辑 `config/videosets.json` 添加视频配置
+3. 添加命令关键词（包括同音字）
+4. 刷新浏览器测试
+
+### Q: 视频文件太大怎么办？
+**A**:
+```bash
+# 压缩视频
+ffmpeg -i input.mp4 -vf scale=1280:720 -c:v libx264 -crf 28 output.mp4
+```
+
+### Q: 动作视频播放后不返回idle？
+**A**:
+- 检查 `idleVideo` 配置是否正确
+- 确保idle视频不在命令映射中（或映射到自己）
+- 查看控制台日志确认视频结束逻辑
+
+## 开发路线图 (Development Roadmap)
+
+### 已完成 (Completed) ✅
+- [x] 基础语音识别
+- [x] 视频播放和切换
+- [x] 相似音匹配
+- [x] 双视频层无缝切换
+- [x] 移动端支持
+- [x] 手动控制按钮
+- [x] 队列系统
+- [x] 视频预加载
+- [x] 防止全屏
+- [x] 视频搜索工具
+- [x] 多视频集配置系统
+- [x] Idle/Anchor 视频系统
+- [x] 硬件加速优化
+- [x] 词汇限制和视觉反馈
+- [x] **语音确认功能** 🆕
+- [x] **外部配置系统** 🆕
+- [x] **音频预加载和播放** 🆕
+- [x] **音量控制UI** 🆕
+- [x] 完整文档
+
+### 可能的未来改进 (Possible Future Improvements)
+- [ ] 更多视频动作
+- [ ] 视频效果（滤镜、特效）
+- [ ] 多语言支持（日语、韩语等）
+- [ ] 离线语音识别
+- [ ] 视频编辑器集成
+- [ ] 云端视频库
+- [ ] 用户配置保存
+- [ ] 统计和分析
+- [ ] PWA 支持
+- [ ] 用户自定义音频上传
+- [ ] 情感化语音反馈
+- [ ] 音频可视化效果
+
+## 许可证 (License)
+
+MIT License - 详见 LICENSE 文件
+
+## 致谢 (Acknowledgments)
+
+### 技术栈 (Technology Stack)
+- **Flask** - Python web 框架
+- **Web Speech API** - 浏览器语音识别
+- **ffmpeg** - 视频处理
+- **yt-dlp** - 视频下载
+
+### 视频来源 (Video Sources)
+- **Pexels** - 免费视频素材
+- **Mixkit** - 免费视频片段
+- **Pixabay** - 免费素材库
+
+## 更新日志 (Changelog)
+
+### Version 2.0.0 (2026-01-29)
+- ✅ **语音确认功能** - 命令识别时播放音频反馈 🆕
+- ✅ **外部配置系统** - JSON配置文件，易于维护 🆕
+- ✅ **音频预加载** - 无延迟音频播放 🆕
+- ✅ **音量控制UI** - 音量滑块、静音按钮、开关 🆕
+- ✅ **同音字智能匹配** - 支持"读起来"→"抖"等同音词识别 🆕
+- ✅ **音频生成脚本** - 自动生成中文语音文件 🆕
+- ✅ 多视频集配置系统
+- ✅ Idle/Anchor 视频循环系统
+- ✅ 动作视频单次播放
+- ✅ 硬件加速优化（500ms过渡）
+- ✅ 智能视频预加载
+- ✅ 词汇限制到配置命令
+- ✅ 视觉反馈（✓/✗）
+- ✅ 默认中文识别
+- ✅ 三个TikTok视频集
+
+### 重要修复 (Important Fixes)
+- 🔧 修复中文音频文件无声问题（Tingting语音）
+- 🔧 添加同音字支持解决"抖起来"→"读起来"识别问题
+- 🔧 优化配置加载和验证机制
+
+### Version 1.0.0 (2026-01-26)
+- ✅ 初始版本发布
+- ✅ 基础语音识别功能
+- ✅ 视频播放和切换
+- ✅ 移动端支持
+- ✅ 视频搜索工具
+- ✅ 完整文档
 
 ---
+
+**最后更新**: 2026-01-29
+**版本**: 2.0.0
+**状态**: ✅ 生产就绪 (Production Ready)

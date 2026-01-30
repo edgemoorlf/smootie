@@ -22,120 +22,78 @@ class VoiceVideoController {
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
 
-        // Video set configurations
-        this.videoSets = {
-            'tiktok/set3': {
-                videos: ['7.mp4', '8.mp4', '9.mp4'],
-                defaultVideo: '7.mp4',
-                idleVideo: '7.mp4', // Anchor/idle video that loops
-                commands: {
-                    'stop': '7.mp4',
-                    '停': '7.mp4',
-                    '听': '7.mp4',
-                    '挺': '7.mp4',
-                    '庭': '7.mp4',
-                    'shake': '8.mp4',
-                    '抖': '8.mp4',
-                    '斗': '8.mp4',
-                    '豆': '8.mp4',
-                    'twist': '9.mp4',
-                    '扭': '9.mp4',
-                    '纽': '9.mp4',
-                    '牛': '9.mp4'
-                },
-                buttons: [
-                    { label: '停', video: '7.mp4', class: 'stop-btn' },
-                    { label: '抖', video: '8.mp4', class: 'circle-btn' },
-                    { label: '扭', video: '9.mp4', class: 'jump-btn' }
-                ]
-            },
-            'tiktok/set1': {
-                videos: ['1.mp4', '2.mp4', '3.mp4'],
-                defaultVideo: '1.mp4',
-                idleVideo: '1.mp4', // Anchor/idle video that loops
-                commands: {
-                    'jump': '1.mp4',
-                    '跳': '1.mp4',
-                    '条': '1.mp4',
-                    '调': '1.mp4',
-                    'circle': '2.mp4',
-                    '转': '2.mp4',
-                    '赚': '2.mp4',
-                    '传': '2.mp4',
-                    '专': '2.mp4',
-                    'stop': '3.mp4',
-                    '停': '3.mp4',
-                    '听': '3.mp4',
-                    '挺': '3.mp4',
-                    '庭': '3.mp4'
-                },
-                buttons: [
-                    { label: '扭', video: '1.mp4', class: 'jump-btn' },
-                    { label: '抖', video: '2.mp4', class: 'circle-btn' },
-                    { label: '颠', video: '3.mp4', class: 'stop-btn' }
-                ]
-            },
-            'tiktok/set2': {
-                videos: ['4.mp4', '5.mp4', '6.mp4'],
-                defaultVideo: '6.mp4',
-                idleVideo: '6.mp4', // Anchor/idle video that loops
-                commands: {
-                    'jump': '4.mp4',
-                    '跳': '4.mp4',
-                    '条': '4.mp4',
-                    '调': '4.mp4',
-                    'circle': '5.mp4',
-                    '转': '5.mp4',
-                    '赚': '5.mp4',
-                    '传': '5.mp4',
-                    '专': '5.mp4',
-                    'stop': '6.mp4',
-                    '停': '6.mp4',
-                    '听': '6.mp4',
-                    '挺': '6.mp4',
-                    '庭': '6.mp4'
-                },
-                buttons: [
-                    { label: '跳 Jump', video: '4.mp4', class: 'jump-btn' },
-                    { label: '转 Circle', video: '5.mp4', class: 'circle-btn' },
-                    { label: '停 Stop', video: '6.mp4', class: 'stop-btn' }
-                ]
-            },
-            'default': {
-                videos: ['idle.mov', 'jump.mov', 'circle.mov'],
-                defaultVideo: 'idle.mov',
-                idleVideo: 'idle.mov', // Anchor/idle video that loops
-                commands: {
-                    'jump': 'jump.mov',
-                    '跳': 'jump.mov',
-                    '条': 'jump.mov',
-                    '调': 'jump.mov',
-                    'circle': 'circle.mov',
-                    '转': 'circle.mov',
-                    '赚': 'circle.mov',
-                    '传': 'circle.mov',
-                    '专': 'circle.mov',
-                    'stop': 'idle.mov',
-                    '停': 'idle.mov',
-                    '听': 'idle.mov',
-                    '挺': 'idle.mov',
-                    '庭': 'idle.mov'
-                },
-                buttons: [
-                    { label: '跳 Jump', video: 'jump.mov', class: 'jump-btn' },
-                    { label: '转 Circle', video: 'circle.mov', class: 'circle-btn' },
-                    { label: '停 Stop', video: 'idle.mov', class: 'stop-btn' }
-                ]
-            }
-        };
+        // Configuration loader
+        this.configLoader = new ConfigLoader();
+        this.videoSets = null; // Will be loaded from config
+        this.currentSet = null; // Will be set after config loads
 
-        // Current video set (subdirectory in videos/)
-        this.currentSet = 'tiktok/set3';
+        // Audio acknowledgement properties
+        this.audioAckEnabled = true;
+        this.audioAckVolume = 0.7;
+        this.preloadedAudio = {};
+        this.currentAudio = null;
 
-        // Load configuration for current set
-        this.loadVideoSet(this.currentSet);
+        // Initialize asynchronously
+        this.initAsync();
+    }
 
-        this.init();
+    async initAsync() {
+        try {
+            this.updateStatus('Loading configuration...');
+            console.log('Initializing VoiceVideoController...');
+
+            // Load configuration
+            await this.configLoader.loadConfig();
+
+            // Convert to legacy format for backward compatibility
+            this.videoSets = this.configLoader.convertToLegacyFormat();
+
+            // Get default video set
+            this.currentSet = this.configLoader.getDefaultSet();
+
+            console.log('Configuration loaded, initializing with set:', this.currentSet);
+
+            // Load configuration for current set
+            this.loadVideoSet(this.currentSet);
+
+            // Preload audio files for current set
+            await this.preloadAudioFiles();
+
+            // Initialize UI and functionality
+            this.init();
+
+            this.updateStatus('Ready - Configuration loaded');
+        } catch (error) {
+            console.error('Failed to initialize:', error);
+            this.updateStatus(`Error: ${error.message}`);
+            this.handleConfigLoadError(error);
+        }
+    }
+
+    handleConfigLoadError(error) {
+        // Display error to user
+        const container = document.querySelector('.container');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `
+            <h2>⚠️ Configuration Error</h2>
+            <p>Failed to load configuration: ${error.message}</p>
+            <p>Please check the console for more details.</p>
+            <button onclick="location.reload()">Reload Page</button>
+        `;
+        errorDiv.style.cssText = `
+            background: #ffebee;
+            border: 2px solid #f44336;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #c62828;
+        `;
+        container.insertBefore(errorDiv, container.firstChild);
+
+        // Disable controls
+        this.startBtn.disabled = true;
+        this.stopBtn.disabled = true;
     }
 
     loadVideoSet(setName) {
@@ -159,6 +117,9 @@ class VoiceVideoController {
     init() {
         // Add video set selector
         this.createVideoSetSelector();
+
+        // Add audio controls
+        this.createAudioControls();
 
         // Preload all videos first
         this.preloadVideos().then(() => {
@@ -280,6 +241,9 @@ class VoiceVideoController {
             this.stopListening();
         }
 
+        // Stop any playing audio
+        this.stopCurrentAudio();
+
         // Load new configuration
         this.loadVideoSet(setName);
 
@@ -292,6 +256,9 @@ class VoiceVideoController {
         this.queuedVideo = null;
         this.queuedVideoEl.textContent = '-';
 
+        // Reset audio
+        this.preloadedAudio = {};
+
         this.activePlayer.src = `/videos/${this.currentSet}/${this.currentVideo}`;
         this.inactivePlayer.src = `/videos/${this.currentSet}/${this.currentVideo}`;
         this.activePlayer.load();
@@ -300,8 +267,11 @@ class VoiceVideoController {
         // Update status display
         this.currentVideoEl.textContent = this.currentVideo;
 
-        // Preload new videos
-        this.preloadVideos().then(() => {
+        // Preload new videos and audio
+        Promise.all([
+            this.preloadVideos(),
+            this.preloadAudioFiles()
+        ]).then(() => {
             console.log('New video set loaded');
             this.updateStatus('Ready - New video set loaded');
 
@@ -519,12 +489,16 @@ class VoiceVideoController {
         console.log('Valid commands for current set:', validCommands);
         console.log('Trying to match:', text);
 
+        let matchedCommand = null;
+
         // First, try exact character match (for single Chinese characters)
         for (const char of chars) {
             if (validCommands.includes(char)) {
                 const video = this.commandMap[char];
                 console.log(`Exact character match: ${char} -> ${video}`);
+                matchedCommand = char;
                 this.queueVideoSwitch(video);
+                this.playAcknowledgement(char, true);
                 return true;
             }
         }
@@ -536,7 +510,9 @@ class VoiceVideoController {
                 if (lowerWord === command.toLowerCase()) {
                     const video = this.commandMap[command];
                     console.log(`Exact word match: ${command} -> ${video}`);
+                    matchedCommand = command;
                     this.queueVideoSwitch(video);
+                    this.playAcknowledgement(command, true);
                     return true;
                 }
             }
@@ -548,12 +524,16 @@ class VoiceVideoController {
             if (lowerText.includes(lowerCommand) || chars.includes(command)) {
                 const video = this.commandMap[command];
                 console.log(`Substring match: ${command} -> ${video}`);
+                matchedCommand = command;
                 this.queueVideoSwitch(video);
+                this.playAcknowledgement(command, true);
                 return true;
             }
         }
 
         console.log('No match found for:', text);
+        // Play error acknowledgement for unmatched commands
+        this.playAcknowledgement(text, false);
         return false;
     }
 
@@ -713,6 +693,246 @@ class VoiceVideoController {
 
     updateStatus(status) {
         this.statusEl.textContent = status;
+    }
+
+    // ========================================
+    // Audio Acknowledgement Methods
+    // ========================================
+
+    /**
+     * Preload audio files for the current video set
+     */
+    async preloadAudioFiles() {
+        const config = this.videoSets[this.currentSet];
+        if (!config.audioAck || !config.audioAck.enabled) {
+            console.log('Audio acknowledgement disabled for this set');
+            return;
+        }
+
+        console.log('Preloading audio files for set:', this.currentSet);
+
+        // Collect all audio files to preload
+        const audioFiles = [
+            ...config.audioAck.generic,
+            ...Object.values(config.audioAck.specific),
+            config.audioAck.error
+        ].filter(Boolean);
+
+        console.log('Audio files to preload:', audioFiles);
+
+        const preloadPromises = audioFiles.map(audioFile => {
+            return new Promise((resolve, reject) => {
+                const audio = new Audio(audioFile);
+                audio.preload = 'auto';
+                audio.volume = this.audioAckVolume;
+
+                audio.addEventListener('canplaythrough', () => {
+                    this.preloadedAudio[audioFile] = audio;
+                    console.log(`Preloaded audio: ${audioFile}`);
+                    resolve();
+                });
+
+                audio.addEventListener('error', (e) => {
+                    console.error(`Error preloading audio ${audioFile}:`, e);
+                    // Don't reject, just resolve to continue with other files
+                    resolve();
+                });
+
+                audio.load();
+            });
+        });
+
+        try {
+            await Promise.all(preloadPromises);
+            console.log('All audio files preloaded successfully');
+        } catch (err) {
+            console.error('Error preloading audio files:', err);
+        }
+    }
+
+    /**
+     * Play acknowledgement audio
+     * @param {string} command - The recognized command
+     * @param {boolean} matched - Whether the command matched
+     */
+    playAcknowledgement(command, matched) {
+        if (!this.audioAckEnabled) {
+            console.log('Audio acknowledgement disabled');
+            return;
+        }
+
+        const config = this.videoSets[this.currentSet];
+        if (!config.audioAck || !config.audioAck.enabled) {
+            console.log('Audio acknowledgement not configured for this set');
+            return;
+        }
+
+        // Stop current audio if playing
+        this.stopCurrentAudio();
+
+        let audioFile = null;
+
+        if (matched) {
+            // Try to find command-specific audio
+            // Look for the primary keyword in the command
+            const cmdConfig = this.configLoader.getCommandByKeyword(this.currentSet, command);
+            if (cmdConfig && cmdConfig.primaryKeyword) {
+                audioFile = config.audioAck.specific[cmdConfig.primaryKeyword];
+                console.log(`Using specific audio for command: ${cmdConfig.primaryKeyword}`);
+            }
+
+            // If no specific audio, try direct match
+            if (!audioFile) {
+                audioFile = config.audioAck.specific[command];
+            }
+
+            // If still no specific audio, use generic acknowledgement
+            if (!audioFile && config.audioAck.generic.length > 0) {
+                const randomIndex = Math.floor(Math.random() * config.audioAck.generic.length);
+                audioFile = config.audioAck.generic[randomIndex];
+                console.log(`Using generic acknowledgement audio: ${audioFile}`);
+            }
+        } else {
+            // Use error audio for unmatched commands
+            audioFile = config.audioAck.error;
+            console.log('Using error audio for unmatched command');
+        }
+
+        if (!audioFile) {
+            console.log('No audio file configured');
+            return;
+        }
+
+        // Play the audio
+        const audio = this.preloadedAudio[audioFile];
+        if (audio) {
+            audio.currentTime = 0;
+            audio.volume = this.audioAckVolume;
+            audio.play().catch(err => {
+                console.error('Error playing acknowledgement audio:', err);
+            });
+            this.currentAudio = audio;
+            console.log(`Playing audio: ${audioFile}`);
+        } else {
+            console.warn(`Audio not preloaded: ${audioFile}`);
+        }
+    }
+
+    /**
+     * Stop currently playing audio
+     */
+    stopCurrentAudio() {
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio.currentTime = 0;
+            this.currentAudio = null;
+        }
+    }
+
+    /**
+     * Set audio volume
+     * @param {number} volume - Volume level (0.0 - 1.0)
+     */
+    setAudioVolume(volume) {
+        this.audioAckVolume = Math.max(0, Math.min(1, volume));
+
+        // Update all preloaded audio volumes
+        Object.values(this.preloadedAudio).forEach(audio => {
+            audio.volume = this.audioAckVolume;
+        });
+
+        // Update current playing audio volume
+        if (this.currentAudio) {
+            this.currentAudio.volume = this.audioAckVolume;
+        }
+
+        console.log(`Audio volume set to: ${this.audioAckVolume}`);
+    }
+
+    /**
+     * Toggle audio acknowledgement on/off
+     */
+    toggleAudioAck() {
+        this.audioAckEnabled = !this.audioAckEnabled;
+
+        if (!this.audioAckEnabled) {
+            this.stopCurrentAudio();
+        }
+
+        console.log(`Audio acknowledgement ${this.audioAckEnabled ? 'enabled' : 'disabled'}`);
+        return this.audioAckEnabled;
+    }
+
+    /**
+     * Create audio control UI
+     */
+    createAudioControls() {
+        const controlsDiv = document.querySelector('.controls');
+        const audioControlsDiv = document.createElement('div');
+        audioControlsDiv.className = 'audio-controls';
+        audioControlsDiv.innerHTML = `
+            <h3>语音确认设置 Audio Acknowledgement:</h3>
+
+            <div class="audio-control-item">
+                <label>
+                    <input type="checkbox" id="audioAckToggle" checked>
+                    启用语音确认 Enable Audio Ack
+                </label>
+            </div>
+
+            <div class="audio-control-item">
+                <label>
+                    音量 Volume:
+                    <input type="range" id="audioVolumeSlider"
+                           min="0" max="100" value="70" step="1">
+                    <span id="audioVolumeValue">70%</span>
+                </label>
+            </div>
+
+            <div class="audio-control-item">
+                <button id="audioMuteBtn" class="btn-small">🔊 静音 Mute</button>
+            </div>
+        `;
+
+        // Insert after the main controls
+        controlsDiv.parentNode.insertBefore(audioControlsDiv, controlsDiv.nextSibling);
+
+        // Add event listeners
+        const audioAckToggle = document.getElementById('audioAckToggle');
+        const audioVolumeSlider = document.getElementById('audioVolumeSlider');
+        const audioVolumeValue = document.getElementById('audioVolumeValue');
+        const audioMuteBtn = document.getElementById('audioMuteBtn');
+
+        audioAckToggle.addEventListener('change', (e) => {
+            this.audioAckEnabled = e.target.checked;
+            console.log(`Audio acknowledgement ${this.audioAckEnabled ? 'enabled' : 'disabled'}`);
+        });
+
+        audioVolumeSlider.addEventListener('input', (e) => {
+            const volume = parseInt(e.target.value) / 100;
+            this.setAudioVolume(volume);
+            audioVolumeValue.textContent = `${e.target.value}%`;
+        });
+
+        let previousVolume = 0.7;
+        audioMuteBtn.addEventListener('click', () => {
+            if (this.audioAckVolume > 0) {
+                // Mute
+                previousVolume = this.audioAckVolume;
+                this.setAudioVolume(0);
+                audioVolumeSlider.value = 0;
+                audioVolumeValue.textContent = '0%';
+                audioMuteBtn.textContent = '🔇 取消静音 Unmute';
+                audioMuteBtn.classList.add('muted');
+            } else {
+                // Unmute
+                this.setAudioVolume(previousVolume);
+                audioVolumeSlider.value = Math.round(previousVolume * 100);
+                audioVolumeValue.textContent = `${Math.round(previousVolume * 100)}%`;
+                audioMuteBtn.textContent = '🔊 静音 Mute';
+                audioMuteBtn.classList.remove('muted');
+            }
+        });
     }
 }
 

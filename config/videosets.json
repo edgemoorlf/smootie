@@ -1,0 +1,362 @@
+{
+  "version": "2.0.0",
+  "defaultSet": "tiktok/set3",
+  "sets": {
+    "tiktok/set3": {
+      "id": "tiktok/set3",
+      "name": "TikTok Set 3",
+      "description": "Third set of TikTok videos with stop, shake, and twist actions",
+      "videos": [
+        {
+          "id": "7.mp4",
+          "path": "/videos/tiktok/set3/7.mp4",
+          "name": "停 (Stop)",
+          "description": "Idle/anchor video - loops continuously",
+          "duration": 5.2,
+          "isIdle": true,
+          "tags": ["idle", "anchor", "loop", "stop"]
+        },
+        {
+          "id": "8.mp4",
+          "path": "/videos/tiktok/set3/8.mp4",
+          "name": "抖 (Shake)",
+          "description": "Shake action - plays once then returns to idle",
+          "duration": 3.5,
+          "isIdle": false,
+          "tags": ["action", "shake", "dynamic"]
+        },
+        {
+          "id": "9.mp4",
+          "path": "/videos/tiktok/set3/9.mp4",
+          "name": "扭 (Twist)",
+          "description": "Twist action - plays once then returns to idle",
+          "duration": 4.1,
+          "isIdle": false,
+          "tags": ["action", "twist", "dynamic"]
+        }
+      ],
+      "defaultVideo": "7.mp4",
+      "idleVideo": "7.mp4",
+      "commands": {
+        "stop": {
+          "video": "7.mp4",
+          "keywords": ["stop", "停", "听", "挺", "庭"],
+          "description": "Stop and return to idle",
+          "primaryKeyword": "停"
+        },
+        "shake": {
+          "video": "8.mp4",
+          "keywords": ["shake", "抖", "斗", "豆", "读", "读起来", "抖起来", "都"],
+          "description": "Shake action",
+          "primaryKeyword": "抖"
+        },
+        "twist": {
+          "video": "9.mp4",
+          "keywords": ["twist", "扭", "纽", "牛", "扭起来", "妞"],
+          "description": "Twist action",
+          "primaryKeyword": "扭"
+        }
+      },
+      "buttons": [
+        {
+          "label": "停",
+          "video": "7.mp4",
+          "class": "stop-btn",
+          "tooltip": "Stop / Idle"
+        },
+        {
+          "label": "抖",
+          "video": "8.mp4",
+          "class": "circle-btn",
+          "tooltip": "Shake"
+        },
+        {
+          "label": "扭",
+          "video": "9.mp4",
+          "class": "jump-btn",
+          "tooltip": "Twist"
+        }
+      ],
+      "audioAck": {
+        "enabled": true,
+        "volume": 0.7,
+        "generic": [
+          "/audio/common/acknowledged_zh.mp3",
+          "/audio/common/received_zh.mp3"
+        ],
+        "specific": {
+          "停": "/audio/tiktok/set3/stop_zh.mp3",
+          "抖": "/audio/tiktok/set3/shake_zh.mp3",
+          "扭": "/audio/tiktok/set3/twist_zh.mp3"
+        },
+        "error": "/audio/common/error_zh.mp3"
+      }
+    },
+    "tiktok/set1": {
+      "id": "tiktok/set1",
+      "name": "TikTok Set 1",
+      "description": "First set of TikTok videos",
+      "videos": [
+        {
+          "id": "1.mp4",
+          "path": "/videos/tiktok/set1/1.mp4",
+          "name": "扭 (Twist)",
+          "description": "Idle/anchor video - loops continuously",
+          "duration": 4.0,
+          "isIdle": true,
+          "tags": ["idle", "anchor", "loop"]
+        },
+        {
+          "id": "2.mp4",
+          "path": "/videos/tiktok/set1/2.mp4",
+          "name": "抖 (Shake)",
+          "description": "Shake action - plays once then returns to idle",
+          "duration": 3.2,
+          "isIdle": false,
+          "tags": ["action", "shake"]
+        },
+        {
+          "id": "3.mp4",
+          "path": "/videos/tiktok/set1/3.mp4",
+          "name": "颠 (Bounce)",
+          "description": "Bounce action - plays once then returns to idle",
+          "duration": 3.8,
+          "isIdle": false,
+          "tags": ["action", "bounce"]
+        }
+      ],
+      "defaultVideo": "1.mp4",
+      "idleVideo": "1.mp4",
+      "commands": {
+        "jump": {
+          "video": "1.mp4",
+          "keywords": ["jump", "跳", "条", "调"],
+          "description": "Jump action",
+          "primaryKeyword": "跳"
+        },
+        "circle": {
+          "video": "2.mp4",
+          "keywords": ["circle", "转", "赚", "传", "专"],
+          "description": "Circle/rotate action",
+          "primaryKeyword": "转"
+        },
+        "stop": {
+          "video": "3.mp4",
+          "keywords": ["stop", "停", "听", "挺", "庭"],
+          "description": "Stop action",
+          "primaryKeyword": "停"
+        }
+      },
+      "buttons": [
+        {
+          "label": "扭",
+          "video": "1.mp4",
+          "class": "jump-btn",
+          "tooltip": "Twist"
+        },
+        {
+          "label": "抖",
+          "video": "2.mp4",
+          "class": "circle-btn",
+          "tooltip": "Shake"
+        },
+        {
+          "label": "颠",
+          "video": "3.mp4",
+          "class": "stop-btn",
+          "tooltip": "Bounce"
+        }
+      ],
+      "audioAck": {
+        "enabled": true,
+        "volume": 0.7,
+        "generic": [
+          "/audio/common/acknowledged_zh.mp3",
+          "/audio/common/received_zh.mp3"
+        ],
+        "specific": {
+          "跳": "/audio/tiktok/set1/jump_zh.mp3",
+          "转": "/audio/tiktok/set1/circle_zh.mp3",
+          "停": "/audio/tiktok/set1/stop_zh.mp3"
+        },
+        "error": "/audio/common/error_zh.mp3"
+      }
+    },
+    "tiktok/set2": {
+      "id": "tiktok/set2",
+      "name": "TikTok Set 2",
+      "description": "Second set of TikTok videos",
+      "videos": [
+        {
+          "id": "4.mp4",
+          "path": "/videos/tiktok/set2/4.mp4",
+          "name": "跳 (Jump)",
+          "description": "Jump action - plays once then returns to idle",
+          "duration": 3.5,
+          "isIdle": false,
+          "tags": ["action", "jump"]
+        },
+        {
+          "id": "5.mp4",
+          "path": "/videos/tiktok/set2/5.mp4",
+          "name": "转 (Circle)",
+          "description": "Circle action - plays once then returns to idle",
+          "duration": 4.2,
+          "isIdle": false,
+          "tags": ["action", "circle", "rotate"]
+        },
+        {
+          "id": "6.mp4",
+          "path": "/videos/tiktok/set2/6.mp4",
+          "name": "停 (Stop)",
+          "description": "Idle/anchor video - loops continuously",
+          "duration": 5.0,
+          "isIdle": true,
+          "tags": ["idle", "anchor", "loop", "stop"]
+        }
+      ],
+      "defaultVideo": "6.mp4",
+      "idleVideo": "6.mp4",
+      "commands": {
+        "jump": {
+          "video": "4.mp4",
+          "keywords": ["jump", "跳", "条", "调"],
+          "description": "Jump action",
+          "primaryKeyword": "跳"
+        },
+        "circle": {
+          "video": "5.mp4",
+          "keywords": ["circle", "转", "赚", "传", "专"],
+          "description": "Circle/rotate action",
+          "primaryKeyword": "转"
+        },
+        "stop": {
+          "video": "6.mp4",
+          "keywords": ["stop", "停", "听", "挺", "庭"],
+          "description": "Stop and return to idle",
+          "primaryKeyword": "停"
+        }
+      },
+      "buttons": [
+        {
+          "label": "跳 Jump",
+          "video": "4.mp4",
+          "class": "jump-btn",
+          "tooltip": "Jump"
+        },
+        {
+          "label": "转 Circle",
+          "video": "5.mp4",
+          "class": "circle-btn",
+          "tooltip": "Circle"
+        },
+        {
+          "label": "停 Stop",
+          "video": "6.mp4",
+          "class": "stop-btn",
+          "tooltip": "Stop"
+        }
+      ],
+      "audioAck": {
+        "enabled": true,
+        "volume": 0.7,
+        "generic": [
+          "/audio/common/acknowledged_zh.mp3",
+          "/audio/common/received_zh.mp3"
+        ],
+        "specific": {
+          "跳": "/audio/tiktok/set2/jump_zh.mp3",
+          "转": "/audio/tiktok/set2/circle_zh.mp3",
+          "停": "/audio/tiktok/set2/stop_zh.mp3"
+        },
+        "error": "/audio/common/error_zh.mp3"
+      }
+    },
+    "default": {
+      "id": "default",
+      "name": "Default Set",
+      "description": "Default video set with basic actions",
+      "videos": [
+        {
+          "id": "idle.mov",
+          "path": "/videos/default/idle.mov",
+          "name": "Idle",
+          "description": "Idle/anchor video - loops continuously",
+          "duration": 5.0,
+          "isIdle": true,
+          "tags": ["idle", "anchor", "loop"]
+        },
+        {
+          "id": "jump.mov",
+          "path": "/videos/default/jump.mov",
+          "name": "Jump",
+          "description": "Jump action - plays once then returns to idle",
+          "duration": 3.0,
+          "isIdle": false,
+          "tags": ["action", "jump"]
+        },
+        {
+          "id": "circle.mov",
+          "path": "/videos/default/circle.mov",
+          "name": "Circle",
+          "description": "Circle action - plays once then returns to idle",
+          "duration": 4.0,
+          "isIdle": false,
+          "tags": ["action", "circle"]
+        }
+      ],
+      "defaultVideo": "idle.mov",
+      "idleVideo": "idle.mov",
+      "commands": {
+        "jump": {
+          "video": "jump.mov",
+          "keywords": ["jump", "跳", "条", "调"],
+          "description": "Jump action",
+          "primaryKeyword": "jump"
+        },
+        "circle": {
+          "video": "circle.mov",
+          "keywords": ["circle", "转", "赚", "传", "专"],
+          "description": "Circle/rotate action",
+          "primaryKeyword": "circle"
+        },
+        "stop": {
+          "video": "idle.mov",
+          "keywords": ["stop", "停", "听", "挺", "庭"],
+          "description": "Stop and return to idle",
+          "primaryKeyword": "stop"
+        }
+      },
+      "buttons": [
+        {
+          "label": "跳 Jump",
+          "video": "jump.mov",
+          "class": "jump-btn",
+          "tooltip": "Jump"
+        },
+        {
+          "label": "转 Circle",
+          "video": "circle.mov",
+          "class": "circle-btn",
+          "tooltip": "Circle"
+        },
+        {
+          "label": "停 Stop",
+          "video": "idle.mov",
+          "class": "stop-btn",
+          "tooltip": "Stop"
+        }
+      ],
+      "audioAck": {
+        "enabled": true,
+        "volume": 0.7,
+        "generic": [
+          "/audio/common/acknowledged_zh.mp3",
+          "/audio/common/acknowledged_en.mp3"
+        ],
+        "specific": {},
+        "error": "/audio/common/error_zh.mp3"
+      }
+    }
+  }
+}
