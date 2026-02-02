@@ -11,6 +11,8 @@ class VoiceVideoController {
         this.recognizedEl = document.getElementById('recognized');
         this.currentVideoEl = document.getElementById('currentVideo');
         this.queuedVideoEl = document.getElementById('queuedVideo');
+        this.listeningIndicator = document.querySelector('.listening-indicator');
+        this.listeningStatus = document.querySelector('.listening-status');
 
         this.recognition = null;
         this.isListening = false;
@@ -33,13 +35,19 @@ class VoiceVideoController {
         this.preloadedAudio = {};
         this.currentAudio = null;
 
+        // Speech recognition settings - load from localStorage or use defaults
+        this.recognitionSettings = this.loadRecognitionSettings();
+
+        // Check browser compatibility
+        this.checkBrowserCompatibility();
+
         // Initialize asynchronously
         this.initAsync();
     }
 
     async initAsync() {
         try {
-            this.updateStatus('Loading configuration...');
+            this.updateStatus('加载配置中...');
             console.log('Initializing VoiceVideoController...');
 
             // Load configuration
@@ -62,10 +70,10 @@ class VoiceVideoController {
             // Initialize UI and functionality
             this.init();
 
-            this.updateStatus('Ready - Configuration loaded');
+            this.updateStatus('就绪 - 配置已加载');
         } catch (error) {
             console.error('Failed to initialize:', error);
-            this.updateStatus(`Error: ${error.message}`);
+            this.updateStatus(`错误: ${error.message}`);
             this.handleConfigLoadError(error);
         }
     }
@@ -76,10 +84,10 @@ class VoiceVideoController {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
         errorDiv.innerHTML = `
-            <h2>⚠️ Configuration Error</h2>
-            <p>Failed to load configuration: ${error.message}</p>
-            <p>Please check the console for more details.</p>
-            <button onclick="location.reload()">Reload Page</button>
+            <h2>⚠️ 配置错误</h2>
+            <p>加载配置失败: ${error.message}</p>
+            <p>请查看控制台获取更多详情。</p>
+            <button onclick="location.reload()">重新加载页面</button>
         `;
         errorDiv.style.cssText = `
             background: #ffebee;
@@ -118,13 +126,16 @@ class VoiceVideoController {
         // Add video set selector
         this.createVideoSetSelector();
 
+        // Add speech recognition settings
+        this.createRecognitionSettings();
+
         // Add audio controls
         this.createAudioControls();
 
         // Preload all videos first
         this.preloadVideos().then(() => {
             console.log('All videos preloaded');
-            this.updateStatus('Ready - All videos loaded');
+            this.updateStatus('就绪 - 所有视频已加载');
         });
 
         this.startBtn.addEventListener('click', () => this.startListening());
@@ -203,6 +214,9 @@ class VoiceVideoController {
             }
         });
 
+        // Initialize listening indicator to idle state
+        this.updateListeningIndicator('idle', '待机');
+
         // Start playing the initial video
         this.activePlayer.play().catch(err => {
             console.log('Autoplay prevented, user interaction required');
@@ -217,7 +231,7 @@ class VoiceVideoController {
         selectorDiv.className = 'video-set-selector';
         selectorDiv.innerHTML = `
             <label>
-                视频集 Video Set:
+                视频集:
                 <select id="videoSetSelect">
                     ${Object.keys(this.videoSets).map(setName =>
                         `<option value="${setName}" ${setName === this.currentSet ? 'selected' : ''}>${setName}</option>`
@@ -273,7 +287,7 @@ class VoiceVideoController {
             this.preloadAudioFiles()
         ]).then(() => {
             console.log('New video set loaded');
-            this.updateStatus('Ready - New video set loaded');
+            this.updateStatus('就绪 - 新视频集已加载');
 
             // Start playing
             this.activePlayer.play().catch(() => {
@@ -365,7 +379,8 @@ class VoiceVideoController {
         this.isListening = true;
         this.startBtn.disabled = true;
         this.stopBtn.disabled = false;
-        this.updateStatus('正在监听... Listening...');
+        this.updateStatus('正在监听...');
+        this.updateListeningIndicator('listening', '正在监听...');
     }
 
     stopListening() {
@@ -377,12 +392,13 @@ class VoiceVideoController {
         this.isListening = false;
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
-        this.updateStatus('已停止 Stopped');
+        this.updateStatus('已停止');
+        this.updateListeningIndicator('idle', '待机');
     }
 
     startBrowserRecognition() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert('浏览器不支持语音识别。请使用 Chrome 或 Edge 浏览器。\nBrowser speech recognition is not supported. Please use Chrome or Edge.');
+            alert('浏览器不支持语音识别。请使用 Chrome 或 Edge 浏览器。');
             this.stopListening();
             return;
         }
@@ -390,13 +406,13 @@ class VoiceVideoController {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
 
-        // Mobile-optimized settings with Chinese by default
-        this.recognition.continuous = false; // Better for mobile - one phrase at a time
-        this.recognition.interimResults = true;
-        this.recognition.lang = 'zh-CN'; // Default to Chinese
-        this.recognition.maxAlternatives = 10; // Increased to get more alternatives for better matching
+        // Apply user-configured settings
+        this.recognition.continuous = this.recognitionSettings.continuous;
+        this.recognition.interimResults = this.recognitionSettings.interimResults;
+        this.recognition.lang = this.recognitionSettings.language;
+        this.recognition.maxAlternatives = this.recognitionSettings.maxAlternatives;
 
-        console.log('Starting recognition with language: zh-CN');
+        console.log('Starting recognition with settings:', this.recognitionSettings);
         console.log('Valid commands:', Object.keys(this.commandMap));
 
         this.recognition.onresult = (event) => {
@@ -404,19 +420,37 @@ class VoiceVideoController {
             const result = event.results[last];
 
             if (result.isFinal) {
+                // Show processing state
+                this.updateListeningIndicator('processing', '处理中...');
+
                 // Check all alternatives, not just the first one
                 let matched = false;
                 for (let i = 0; i < result.length; i++) {
                     const text = result[i].transcript.trim();
-                    console.log(`Alternative ${i}: "${text}" (confidence: ${result[i].confidence})`);
+                    const confidence = result[i].confidence;
+                    console.log(`Alternative ${i}: "${text}" (confidence: ${confidence})`);
+
+                    // Apply confidence threshold
+                    if (confidence < this.recognitionSettings.confidenceThreshold) {
+                        console.log(`Skipping alternative ${i} due to low confidence (${confidence} < ${this.recognitionSettings.confidenceThreshold})`);
+                        continue;
+                    }
 
                     if (!matched) {
                         // Try to match this alternative
                         if (this.tryProcessCommand(text)) {
                             matched = true;
-                            this.recognizedEl.textContent = `✓ ${text}`;
+                            this.recognizedEl.textContent = `✓ ${text} (${(confidence * 100).toFixed(0)}%)`;
                             this.updateButtonPressedState(text);
+                            this.updateListeningIndicator('listening', '✓ 匹配成功');
                             console.log(`Matched with alternative ${i}`);
+
+                            // Return to listening state after a brief moment
+                            setTimeout(() => {
+                                if (this.isListening) {
+                                    this.updateListeningIndicator('listening', '正在监听...');
+                                }
+                            }, 1000);
                         }
                     }
                 }
@@ -425,8 +459,23 @@ class VoiceVideoController {
                     console.log('No match found in any alternative');
                     // Show the first alternative but indicate no match
                     const text = result[0].transcript.trim();
-                    this.recognizedEl.textContent = `✗ ${text}`;
+                    const confidence = result[0].confidence;
+                    this.recognizedEl.textContent = `✗ ${text} (${(confidence * 100).toFixed(0)}%)`;
                     this.updateButtonPressedState(text);
+
+                    // Check if it was filtered by confidence threshold
+                    if (confidence < this.recognitionSettings.confidenceThreshold) {
+                        this.updateListeningIndicator('error', '✗ 置信度过低');
+                    } else {
+                        this.updateListeningIndicator('error', '✗ 未匹配');
+                    }
+
+                    // Return to listening state after a brief moment
+                    setTimeout(() => {
+                        if (this.isListening) {
+                            this.updateListeningIndicator('listening', '正在监听...');
+                        }
+                    }, 1500);
                 }
             } else {
                 // Show interim results
@@ -434,6 +483,7 @@ class VoiceVideoController {
                 console.log('Recognized (interim):', text);
                 this.recognizedEl.textContent = text + ' (...)';
                 this.updateButtonPressedState(text);
+                this.updateListeningIndicator('listening', '识别中...');
             }
         };
 
@@ -441,16 +491,19 @@ class VoiceVideoController {
             console.error('Speech recognition error:', event.error);
             if (event.error === 'no-speech') {
                 console.log('No speech detected, restarting...');
+                this.updateListeningIndicator('listening', '等待语音...');
                 return;
             }
             if (event.error === 'aborted') {
                 return;
             }
             if (event.error === 'network') {
-                this.updateStatus('网络错误 Network error');
+                this.updateStatus('网络错误');
+                this.updateListeningIndicator('error', '网络错误');
                 return;
             }
-            this.updateStatus(`错误 Error: ${event.error}`);
+            this.updateStatus(`错误: ${event.error}`);
+            this.updateListeningIndicator('error', `错误: ${event.error}`);
         };
 
         this.recognition.onend = () => {
@@ -469,14 +522,15 @@ class VoiceVideoController {
 
         this.recognition.onstart = () => {
             console.log('Recognition started');
-            this.updateStatus('正在监听... Listening...');
+            this.updateStatus('正在监听...');
+            this.updateListeningIndicator('listening', '正在监听...');
         };
 
         try {
             this.recognition.start();
         } catch (e) {
             console.error('Error starting recognition:', e);
-            this.updateStatus('启动识别失败 Error starting recognition');
+            this.updateStatus('启动识别失败');
         }
     }
 
@@ -707,6 +761,83 @@ class VoiceVideoController {
         }
     }
 
+    updateListeningIndicator(state, statusText) {
+        if (!this.listeningIndicator || !this.listeningStatus) return;
+
+        // Remove all state classes
+        this.listeningIndicator.classList.remove('idle', 'listening', 'processing', 'error');
+
+        // Add the new state class
+        this.listeningIndicator.classList.add(state);
+
+        // Update status text
+        this.listeningStatus.textContent = statusText;
+    }
+
+    /**
+     * Load recognition settings from localStorage
+     */
+    loadRecognitionSettings() {
+        const defaultSettings = {
+            continuous: false,
+            interimResults: true,
+            language: 'zh-CN',
+            maxAlternatives: 10,
+            confidenceThreshold: 0.5
+        };
+
+        try {
+            const saved = localStorage.getItem('recognitionSettings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                console.log('Loaded recognition settings from localStorage:', parsed);
+                return { ...defaultSettings, ...parsed };
+            }
+        } catch (e) {
+            console.error('Error loading recognition settings:', e);
+        }
+
+        return defaultSettings;
+    }
+
+    /**
+     * Save recognition settings to localStorage
+     */
+    saveRecognitionSettings() {
+        try {
+            localStorage.setItem('recognitionSettings', JSON.stringify(this.recognitionSettings));
+            console.log('Saved recognition settings to localStorage');
+        } catch (e) {
+            console.error('Error saving recognition settings:', e);
+        }
+    }
+
+    /**
+     * Check browser compatibility for speech recognition
+     */
+    checkBrowserCompatibility() {
+        const hasSupport = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+
+        if (!hasSupport) {
+            console.warn('Browser does not support Web Speech API');
+
+            // Show warning banner
+            const container = document.querySelector('.container');
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'browser-warning';
+            warningDiv.innerHTML = `
+                <h3>⚠️ 浏览器不支持语音识别</h3>
+                <p>您的浏览器不支持 Web Speech API。请使用 Chrome、Edge 或 Safari 浏览器。</p>
+            `;
+            container.insertBefore(warningDiv, container.firstChild);
+
+            return false;
+        }
+
+        console.log('Browser supports Web Speech API');
+        return true;
+    }
+
     // ========================================
     // Audio Acknowledgement Methods
     // ========================================
@@ -873,6 +1004,145 @@ class VoiceVideoController {
 
         console.log(`Audio acknowledgement ${this.audioAckEnabled ? 'enabled' : 'disabled'}`);
         return this.audioAckEnabled;
+    }
+
+    /**
+     * Create speech recognition settings UI
+     */
+    createRecognitionSettings() {
+        const settingsDiv = document.createElement('div');
+        settingsDiv.className = 'recognition-settings collapsed';
+        settingsDiv.innerHTML = `
+            <h3>⚙️ 语音识别设置</h3>
+
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label>
+                        语言:
+                        <select id="recognitionLanguage">
+                            <option value="zh-CN" selected>中文</option>
+                            <option value="en-US">英语 (美国)</option>
+                            <option value="en-GB">英语 (英国)</option>
+                            <option value="ja-JP">日本語</option>
+                            <option value="ko-KR">한국어</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="continuousMode">
+                        连续模式
+                    </label>
+                    <span class="setting-hint">持续监听，无需重复启动</span>
+                </div>
+
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="interimResults" checked>
+                        实时结果
+                    </label>
+                    <span class="setting-hint">显示识别中的临时结果</span>
+                </div>
+
+                <div class="setting-item">
+                    <label>
+                        备选数量:
+                        <input type="range" id="maxAlternatives"
+                               min="1" max="20" value="10" step="1">
+                        <span id="maxAlternativesValue">10</span>
+                    </label>
+                    <span class="setting-hint">更多备选可提高匹配准确度</span>
+                </div>
+
+                <div class="setting-item">
+                    <label>
+                        置信度阈值:
+                        <input type="range" id="confidenceThreshold"
+                               min="0" max="1" value="0.5" step="0.05">
+                        <span id="confidenceThresholdValue">0.50</span>
+                    </label>
+                    <span class="setting-hint">过滤低置信度结果 (0-1)</span>
+                </div>
+            </div>
+        `;
+
+        // Insert after the recognized display
+        const recognizedDisplay = document.querySelector('.recognized-display');
+        recognizedDisplay.parentNode.insertBefore(settingsDiv, recognizedDisplay.nextSibling);
+
+        // Add collapse/expand functionality
+        const settingsHeader = settingsDiv.querySelector('h3');
+        settingsHeader.addEventListener('click', () => {
+            settingsDiv.classList.toggle('collapsed');
+        });
+
+        // Add event listeners
+        const languageSelect = document.getElementById('recognitionLanguage');
+        const continuousMode = document.getElementById('continuousMode');
+        const interimResults = document.getElementById('interimResults');
+        const maxAlternatives = document.getElementById('maxAlternatives');
+        const maxAlternativesValue = document.getElementById('maxAlternativesValue');
+        const confidenceThreshold = document.getElementById('confidenceThreshold');
+        const confidenceThresholdValue = document.getElementById('confidenceThresholdValue');
+
+        // Set initial values from saved settings
+        languageSelect.value = this.recognitionSettings.language;
+        continuousMode.checked = this.recognitionSettings.continuous;
+        interimResults.checked = this.recognitionSettings.interimResults;
+        maxAlternatives.value = this.recognitionSettings.maxAlternatives;
+        maxAlternativesValue.textContent = this.recognitionSettings.maxAlternatives;
+        confidenceThreshold.value = this.recognitionSettings.confidenceThreshold;
+        confidenceThresholdValue.textContent = this.recognitionSettings.confidenceThreshold.toFixed(2);
+
+        languageSelect.addEventListener('change', (e) => {
+            this.recognitionSettings.language = e.target.value;
+            this.saveRecognitionSettings();
+            console.log('Language changed to:', e.target.value);
+            if (this.isListening) {
+                // Restart recognition with new settings
+                this.stopListening();
+                setTimeout(() => this.startListening(), 300);
+            }
+        });
+
+        continuousMode.addEventListener('change', (e) => {
+            this.recognitionSettings.continuous = e.target.checked;
+            this.saveRecognitionSettings();
+            console.log('Continuous mode:', e.target.checked);
+            if (this.isListening) {
+                this.stopListening();
+                setTimeout(() => this.startListening(), 300);
+            }
+        });
+
+        interimResults.addEventListener('change', (e) => {
+            this.recognitionSettings.interimResults = e.target.checked;
+            this.saveRecognitionSettings();
+            console.log('Interim results:', e.target.checked);
+            if (this.isListening) {
+                this.stopListening();
+                setTimeout(() => this.startListening(), 300);
+            }
+        });
+
+        maxAlternatives.addEventListener('input', (e) => {
+            this.recognitionSettings.maxAlternatives = parseInt(e.target.value);
+            maxAlternativesValue.textContent = e.target.value;
+            this.saveRecognitionSettings();
+            console.log('Max alternatives:', e.target.value);
+            if (this.isListening) {
+                this.stopListening();
+                setTimeout(() => this.startListening(), 300);
+            }
+        });
+
+        confidenceThreshold.addEventListener('input', (e) => {
+            this.recognitionSettings.confidenceThreshold = parseFloat(e.target.value);
+            confidenceThresholdValue.textContent = parseFloat(e.target.value).toFixed(2);
+            this.saveRecognitionSettings();
+            console.log('Confidence threshold:', e.target.value);
+        });
     }
 
     /**
