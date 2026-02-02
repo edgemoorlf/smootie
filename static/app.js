@@ -537,8 +537,6 @@ class VoiceVideoController {
     // Helper method to try processing a command and return if it matched
     tryProcessCommand(text) {
         const lowerText = text.toLowerCase();
-        const chars = text.split('');
-        const words = lowerText.split(/\s+/);
 
         // Get all valid commands from the current configuration
         const validCommands = Object.keys(this.commandMap);
@@ -546,46 +544,46 @@ class VoiceVideoController {
         console.log('Valid commands for current set:', validCommands);
         console.log('Trying to match:', text);
 
-        let matchedCommand = null;
+        // Find all keywords that appear in the text with their positions
+        const matches = [];
 
-        // First, try exact character match (for single Chinese characters)
-        for (const char of chars) {
-            if (validCommands.includes(char)) {
-                const video = this.commandMap[char];
-                console.log(`Exact character match: ${char} -> ${video}`);
-                matchedCommand = char;
-                this.queueVideoSwitch(video);
-                this.playAcknowledgement(char, true);
-                return true;
-            }
-        }
-
-        // Then try exact word match
-        for (const word of words) {
-            const lowerWord = word.toLowerCase();
-            for (const command of validCommands) {
-                if (lowerWord === command.toLowerCase()) {
-                    const video = this.commandMap[command];
-                    console.log(`Exact word match: ${command} -> ${video}`);
-                    matchedCommand = command;
-                    this.queueVideoSwitch(video);
-                    this.playAcknowledgement(command, true);
-                    return true;
-                }
-            }
-        }
-
-        // Finally, try substring match (for commands within longer text)
         for (const command of validCommands) {
-            const lowerCommand = command.toLowerCase();
-            if (lowerText.includes(lowerCommand) || chars.includes(command)) {
-                const video = this.commandMap[command];
-                console.log(`Substring match: ${command} -> ${video}`);
-                matchedCommand = command;
-                this.queueVideoSwitch(video);
-                this.playAcknowledgement(command, true);
-                return true;
+            // Try to find the command in the text (case-insensitive for non-Chinese, exact for Chinese)
+            let position = -1;
+
+            // For single character commands (like Chinese characters), do exact match
+            if (command.length === 1) {
+                position = text.indexOf(command);
             }
+
+            // If not found, try case-insensitive match
+            if (position === -1) {
+                const lowerCommand = command.toLowerCase();
+                position = lowerText.indexOf(lowerCommand);
+            }
+
+            if (position !== -1) {
+                matches.push({
+                    command: command,
+                    position: position,
+                    video: this.commandMap[command]
+                });
+            }
+        }
+
+        // If we found matches, sort by position and take the first one
+        if (matches.length > 0) {
+            matches.sort((a, b) => a.position - b.position);
+            const firstMatch = matches[0];
+
+            console.log(`Found ${matches.length} match(es), using first: ${firstMatch.command} at position ${firstMatch.position} -> ${firstMatch.video}`);
+            if (matches.length > 1) {
+                console.log('Other matches ignored:', matches.slice(1).map(m => `${m.command} at ${m.position}`).join(', '));
+            }
+
+            this.queueVideoSwitch(firstMatch.video);
+            this.playAcknowledgement(firstMatch.command, true);
+            return true;
         }
 
         console.log('No match found for:', text);
@@ -1060,7 +1058,7 @@ class VoiceVideoController {
                         置信度阈值:
                         <input type="range" id="confidenceThreshold"
                                min="0" max="1" value="0.5" step="0.05">
-                        <span id="confidenceThresholdValue">0.50</span>
+                        <span id="confidenceThresholdValue">0.30</span>
                     </label>
                     <span class="setting-hint">过滤低置信度结果 (0-1)</span>
                 </div>

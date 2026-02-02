@@ -46,13 +46,13 @@
         },
         "shake": {
           "video": "8.mp4",
-          "keywords": ["shake", "抖", "斗", "豆", "读", "读起来", "抖起来", "都"],
+          "keywords": ["shake", "抖", "斗", "豆", "读", "读起来", "抖起来", "都", "肚", "多"],
           "description": "Shake action",
           "primaryKeyword": "抖"
         },
         "twist": {
           "video": "9.mp4",
-          "keywords": ["twist", "扭", "纽", "牛", "扭起来", "妞"],
+          "keywords": ["twist", "扭", "纽", "牛", "扭起来", "妞", "留", "有"],
           "description": "Twist action",
           "primaryKeyword": "扭"
         }
