@@ -8,8 +8,6 @@
 </head>
 <body>
     <div class="container">
-        <h1>Smootie - 声控动作</h1>
-
         <div class="video-container">
             <video id="videoPlayer1" class="video-layer active" autoplay muted playsinline webkit-playsinline x-webkit-airplay="allow" disablePictureInPicture controlsList="nodownload nofullscreen noremoteplayback">
                 <source src="/videos/tiktok/set3/7.mp4" type="video/mp4">
@@ -20,8 +18,12 @@
         </div>
 
         <div class="controls">
-            <button id="startBtn" class="btn">开始监听</button>
-            <button id="stopBtn" class="btn" disabled>停止监听</button>
+            <button id="startBtn" class="btn">命令她</button>
+            <button id="stopBtn" class="btn" disabled>稍息</button>
+        </div>
+
+        <div class="recognized-display">
+            <strong>语音识别:</strong> <span id="recognized">-</span>
         </div>
 
         <div class="manual-controls">
@@ -34,9 +36,6 @@
         <div class="status">
             <div class="status-item">
                 <strong>状态:</strong> <span id="status">Loading configuration...</span>
-            </div>
-            <div class="status-item">
-                <strong>识别内容:</strong> <span id="recognized">-</span>
             </div>
             <div class="status-item">
                 <strong>当前视频:</strong> <span id="currentVideo">-</span>

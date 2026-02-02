@@ -415,6 +415,7 @@ class VoiceVideoController {
                         if (this.tryProcessCommand(text)) {
                             matched = true;
                             this.recognizedEl.textContent = `✓ ${text}`;
+                            this.updateButtonPressedState(text);
                             console.log(`Matched with alternative ${i}`);
                         }
                     }
@@ -425,12 +426,14 @@ class VoiceVideoController {
                     // Show the first alternative but indicate no match
                     const text = result[0].transcript.trim();
                     this.recognizedEl.textContent = `✗ ${text}`;
+                    this.updateButtonPressedState(text);
                 }
             } else {
                 // Show interim results
                 const text = result[0].transcript.trim();
                 console.log('Recognized (interim):', text);
                 this.recognizedEl.textContent = text + ' (...)';
+                this.updateButtonPressedState(text);
             }
         };
 
@@ -695,6 +698,15 @@ class VoiceVideoController {
         this.statusEl.textContent = status;
     }
 
+    updateButtonPressedState(text) {
+        // Check if the recognized text contains '停'
+        if (text.includes('停')) {
+            this.stopBtn.classList.add('pressed');
+        } else {
+            this.stopBtn.classList.remove('pressed');
+        }
+    }
+
     // ========================================
     // Audio Acknowledgement Methods
     // ========================================
@@ -871,18 +883,16 @@ class VoiceVideoController {
         const audioControlsDiv = document.createElement('div');
         audioControlsDiv.className = 'audio-controls';
         audioControlsDiv.innerHTML = `
-            <h3>语音确认设置 Audio Acknowledgement:</h3>
-
             <div class="audio-control-item">
                 <label>
                     <input type="checkbox" id="audioAckToggle" checked>
-                    启用语音确认 Enable Audio Ack
+                    启用语音确认
                 </label>
             </div>
 
             <div class="audio-control-item">
                 <label>
-                    音量 Volume:
+                    音量:
                     <input type="range" id="audioVolumeSlider"
                            min="0" max="100" value="70" step="1">
                     <span id="audioVolumeValue">70%</span>
@@ -890,7 +900,7 @@ class VoiceVideoController {
             </div>
 
             <div class="audio-control-item">
-                <button id="audioMuteBtn" class="btn-small">🔊 静音 Mute</button>
+                <button id="audioMuteBtn" class="btn-small">🔊 静音 </button>
             </div>
         `;
 
@@ -905,7 +915,7 @@ class VoiceVideoController {
 
         audioAckToggle.addEventListener('change', (e) => {
             this.audioAckEnabled = e.target.checked;
-            console.log(`Audio acknowledgement ${this.audioAckEnabled ? 'enabled' : 'disabled'}`);
+            console.log(`Audio ack ${this.audioAckEnabled ? 'enabled' : 'disabled'}`);
         });
 
         audioVolumeSlider.addEventListener('input', (e) => {
@@ -922,14 +932,14 @@ class VoiceVideoController {
                 this.setAudioVolume(0);
                 audioVolumeSlider.value = 0;
                 audioVolumeValue.textContent = '0%';
-                audioMuteBtn.textContent = '🔇 取消静音 Unmute';
+                audioMuteBtn.textContent = '🔇 取消静音';
                 audioMuteBtn.classList.add('muted');
             } else {
                 // Unmute
                 this.setAudioVolume(previousVolume);
                 audioVolumeSlider.value = Math.round(previousVolume * 100);
                 audioVolumeValue.textContent = `${Math.round(previousVolume * 100)}%`;
-                audioMuteBtn.textContent = '🔊 静音 Mute';
+                audioMuteBtn.textContent = '🔊 静音 ';
                 audioMuteBtn.classList.remove('muted');
             }
         });
