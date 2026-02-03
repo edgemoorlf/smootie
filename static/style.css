@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-    max-width: 900px;
+    max-width: 1400px;
     margin: 0 auto;
     background: white;
     border-radius: 20px;
@@ -27,11 +27,28 @@ h1 {
     font-size: 2.5em;
 }
 
+.main-content {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+
+.video-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.controls-section {
+    flex: 0 0 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
 .video-container {
     position: relative;
     width: 100%;
-    max-width: 800px;
-    margin: 0 auto 30px;
     border-radius: 10px;
     overflow: hidden;
     background: #000;
@@ -355,6 +372,11 @@ h1 {
 .setting-item input[type="range"]::-moz-range-thumb:hover {
     background: #5568d3;
     transform: scale(1.2);
+}
+
+.setting-item input[type="checkbox"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .setting-item select {
@@ -682,6 +704,17 @@ h1 {
     font-weight: 600;
     color: #667eea;
     text-align: center;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        flex-direction: column;
+    }
+
+    .controls-section {
+        flex: 1;
+        width: 100%;
+    }
 }
 
 @media (max-width: 768px) {

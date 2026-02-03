@@ -38,6 +38,12 @@ class VoiceVideoController {
         // Speech recognition settings - load from localStorage or use defaults
         this.recognitionSettings = this.loadRecognitionSettings();
 
+        // Force continuous mode for streaming experience
+        this.recognitionSettings.continuous = true;
+
+        // Video switching mode - load from localStorage or use default (immediate)
+        this.immediateSwitch = this.loadImmediateSwitchSetting();
+
         // Check browser compatibility
         this.checkBrowserCompatibility();
 
@@ -100,8 +106,8 @@ class VoiceVideoController {
         container.insertBefore(errorDiv, container.firstChild);
 
         // Disable controls
-        this.startBtn.disabled = true;
-        this.stopBtn.disabled = true;
+        this.startBtn.style.display = 'none';
+        this.stopBtn.style.display = 'none';
     }
 
     loadVideoSet(setName) {
@@ -139,7 +145,12 @@ class VoiceVideoController {
         });
 
         this.startBtn.addEventListener('click', () => this.startListening());
-        this.stopBtn.addEventListener('click', () => this.stopListening());
+        this.stopBtn.addEventListener('click', () => {
+            this.stopListening();
+            // Show start button when stopped
+            this.startBtn.style.display = 'inline-block';
+            this.stopBtn.style.display = 'none';
+        });
 
         // Add manual control button listeners
         this.updateManualControls();
@@ -217,11 +228,20 @@ class VoiceVideoController {
         // Initialize listening indicator to idle state
         this.updateListeningIndicator('idle', '待机');
 
-        // Start playing the initial video
-        this.activePlayer.play().catch(err => {
+        // Start playing the initial video (muted to allow autoplay)
+        this.activePlayer.play().then(() => {
+            console.log('Video autoplay succeeded');
+            // Don't auto-start listening - wait for user to click "命令她"
+            this.updateStatus('点击"命令她"按钮开始语音识别');
+        }).catch(() => {
             console.log('Autoplay prevented, user interaction required');
             this.activePlayer.muted = true;
-            this.activePlayer.play();
+            this.activePlayer.play().then(() => {
+                console.log('Muted video autoplay succeeded');
+            });
+
+            // Show a message prompting user to click to enable audio
+            this.updateStatus('点击"命令她"按钮开始语音识别');
         });
     }
 
@@ -253,6 +273,8 @@ class VoiceVideoController {
         // Stop listening if active
         if (this.isListening) {
             this.stopListening();
+            this.startBtn.style.display = 'inline-block';
+            this.stopBtn.style.display = 'none';
         }
 
         // Stop any playing audio
@@ -293,6 +315,11 @@ class VoiceVideoController {
             this.activePlayer.play().catch(() => {
                 console.log('Autoplay prevented, user interaction required');
             });
+
+            // Restart listening if it was active
+            if (this.isListening) {
+                this.startListening();
+            }
         });
     }
 
@@ -377,21 +404,25 @@ class VoiceVideoController {
     startListening() {
         this.startBrowserRecognition();
         this.isListening = true;
-        this.startBtn.disabled = true;
-        this.stopBtn.disabled = false;
+        this.startBtn.style.display = 'none';
+        this.stopBtn.style.display = 'inline-block';
         this.updateStatus('正在监听...');
         this.updateListeningIndicator('listening', '正在监听...');
     }
 
     stopListening() {
         if (this.recognition) {
-            this.recognition.stop();
+            try {
+                this.recognition.stop();
+            } catch (e) {
+                console.error('Error stopping recognition:', e);
+            }
             this.recognition = null;
         }
 
         this.isListening = false;
-        this.startBtn.disabled = false;
-        this.stopBtn.disabled = true;
+        this.startBtn.style.display = 'inline-block';
+        this.stopBtn.style.display = 'none';
         this.updateStatus('已停止');
         this.updateListeningIndicator('idle', '待机');
     }
@@ -406,13 +437,13 @@ class VoiceVideoController {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
 
-        // Apply user-configured settings
-        this.recognition.continuous = this.recognitionSettings.continuous;
+        // Force continuous mode for streaming experience
+        this.recognition.continuous = true;
         this.recognition.interimResults = this.recognitionSettings.interimResults;
         this.recognition.lang = this.recognitionSettings.language;
         this.recognition.maxAlternatives = this.recognitionSettings.maxAlternatives;
 
-        console.log('Starting recognition with settings:', this.recognitionSettings);
+        console.log('Starting recognition in continuous streaming mode');
         console.log('Valid commands:', Object.keys(this.commandMap));
 
         this.recognition.onresult = (event) => {
@@ -425,9 +456,19 @@ class VoiceVideoController {
 
                 // Check all alternatives, not just the first one
                 let matched = false;
+                let hasValidAlternative = false;
+
                 for (let i = 0; i < result.length; i++) {
                     const text = result[i].transcript.trim();
                     const confidence = result[i].confidence;
+
+                    // Skip empty results (indicates recognition issue)
+                    if (text === '' || confidence === 0) {
+                        console.log(`Alternative ${i}: empty or zero confidence, skipping`);
+                        continue;
+                    }
+
+                    hasValidAlternative = true;
                     console.log(`Alternative ${i}: "${text}" (confidence: ${confidence})`);
 
                     // Apply confidence threshold
@@ -453,6 +494,25 @@ class VoiceVideoController {
                             }, 1000);
                         }
                     }
+                }
+
+                // If no valid alternatives, recognition might be broken - restart it
+                if (!hasValidAlternative) {
+                    console.warn('Recognition returned no valid alternatives - may be broken, restarting...');
+                    this.updateListeningIndicator('error', '⚠️ 重启识别...');
+
+                    // Force restart recognition
+                    if (this.recognition) {
+                        this.recognition.stop();
+                    }
+
+                    setTimeout(() => {
+                        if (this.isListening) {
+                            console.log('Restarting recognition after empty results');
+                            this.startBrowserRecognition();
+                        }
+                    }, 500);
+                    return;
                 }
 
                 if (!matched) {
@@ -490,16 +550,38 @@ class VoiceVideoController {
         this.recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
             if (event.error === 'no-speech') {
-                console.log('No speech detected, restarting...');
+                console.log('No speech detected, continuing...');
                 this.updateListeningIndicator('listening', '等待语音...');
                 return;
             }
             if (event.error === 'aborted') {
+                console.log('Recognition aborted');
+                return;
+            }
+            if (event.error === 'audio-capture') {
+                this.updateStatus('麦克风错误');
+                this.updateListeningIndicator('error', '麦克风错误');
+                // Try to restart after audio-capture error
+                setTimeout(() => {
+                    if (this.isListening) {
+                        console.log('Attempting to restart after audio-capture error');
+                        this.stopListening();
+                        setTimeout(() => this.startListening(), 1000);
+                    }
+                }, 1000);
                 return;
             }
             if (event.error === 'network') {
                 this.updateStatus('网络错误');
                 this.updateListeningIndicator('error', '网络错误');
+                // Try to restart after network error
+                setTimeout(() => {
+                    if (this.isListening) {
+                        console.log('Attempting to restart after network error');
+                        this.stopListening();
+                        setTimeout(() => this.startListening(), 2000);
+                    }
+                }, 1000);
                 return;
             }
             this.updateStatus(`错误: ${event.error}`);
@@ -509,14 +591,25 @@ class VoiceVideoController {
         this.recognition.onend = () => {
             console.log('Recognition ended, isListening:', this.isListening);
             if (this.isListening) {
-                // Restart recognition if still listening
+                // Immediately restart recognition for continuous streaming
                 setTimeout(() => {
                     try {
                         this.recognition.start();
+                        console.log('Recognition restarted in continuous mode');
                     } catch (e) {
                         console.error('Error restarting recognition:', e);
+                        // Try again after a longer delay if there was an error
+                        setTimeout(() => {
+                            if (this.isListening) {
+                                try {
+                                    this.recognition.start();
+                                } catch (e2) {
+                                    console.error('Failed to restart recognition:', e2);
+                                }
+                            }
+                        }, 1000);
                     }
-                }, 300); // Small delay for mobile
+                }, 100); // Minimal delay for continuous streaming
             }
         };
 
@@ -612,28 +705,53 @@ class VoiceVideoController {
             return;
         }
 
-        console.log(`Queueing video: ${videoFile}, will switch when current video ends`);
+        // Set queued video
         this.queuedVideo = videoFile;
         this.queuedVideoEl.textContent = videoFile;
 
-        // Preload the queued video for instant switching
-        if (!this.preloadedVideos[videoFile]) {
-            console.log(`Preloading queued video: ${videoFile}`);
-            const video = document.createElement('video');
-            video.preload = 'auto';
-            video.src = `/videos/${this.currentSet}/${videoFile}`;
-            video.muted = true;
+        if (this.immediateSwitch) {
+            // Immediate switch mode: interrupt current video and switch right away
+            console.log(`Switching immediately to video: ${videoFile}`);
 
-            video.addEventListener('loadeddata', () => {
-                this.preloadedVideos[videoFile] = video;
-                console.log(`Queued video preloaded: ${videoFile}`);
-            });
+            // Preload the video for instant switching
+            if (!this.preloadedVideos[videoFile]) {
+                console.log(`Preloading video: ${videoFile}`);
+                const video = document.createElement('video');
+                video.preload = 'auto';
+                video.src = `/videos/${this.currentSet}/${videoFile}`;
+                video.muted = true;
 
-            video.load();
+                video.addEventListener('loadeddata', () => {
+                    this.preloadedVideos[videoFile] = video;
+                    console.log(`Video preloaded: ${videoFile}`);
+                    // Switch immediately after preload
+                    this.switchVideo();
+                });
+
+                video.load();
+            } else {
+                // Video already preloaded, switch immediately
+                this.switchVideo();
+            }
+        } else {
+            // Wait for current video to finish mode: just queue it
+            console.log(`Queued video: ${videoFile} (will play after current video ends)`);
+
+            // Preload in background for smooth transition
+            if (!this.preloadedVideos[videoFile]) {
+                console.log(`Preloading video in background: ${videoFile}`);
+                const video = document.createElement('video');
+                video.preload = 'auto';
+                video.src = `/videos/${this.currentSet}/${videoFile}`;
+                video.muted = true;
+                video.load();
+
+                video.addEventListener('loadeddata', () => {
+                    this.preloadedVideos[videoFile] = video;
+                    console.log(`Video preloaded in background: ${videoFile}`);
+                });
+            }
         }
-
-        // DO NOT switch immediately - always wait for video to end
-        // The switch will happen in onVideoEnded() when the current video finishes
     }
 
     switchVideo() {
@@ -643,7 +761,13 @@ class VoiceVideoController {
         }
 
         if (this.isSwitching) {
-            console.log('switchVideo called but already switching');
+            console.log('switchVideo called but already switching, will retry after current switch');
+            // Queue another switch after current one completes
+            setTimeout(() => {
+                if (!this.isSwitching && this.queuedVideo) {
+                    this.switchVideo();
+                }
+            }, 600);
             return;
         }
 
@@ -655,7 +779,7 @@ class VoiceVideoController {
         this.currentVideoEl.textContent = videoToPlay;
 
         this.isSwitching = true;
-        console.log(`Starting switch to ${videoToPlay}`);
+        console.log(`Starting immediate switch to ${videoToPlay}`);
 
         // Use preloaded video if available, otherwise load it
         const preloadedVideo = this.preloadedVideos[videoToPlay];
@@ -698,7 +822,7 @@ class VoiceVideoController {
 
                     this.isSwitching = false;
                     console.log('Video switch complete, new active video:', videoToPlay);
-                }, 500); // Increased from 300ms for smoother transition
+                }, 500); // Transition duration
             }).catch(err => {
                 console.error('Error playing new video:', err);
                 this.isSwitching = false;
@@ -722,10 +846,8 @@ class VoiceVideoController {
 
         if (this.queuedVideo) {
             console.log('Switching to queued video:', this.queuedVideo);
-            // Small delay to ensure smooth transition
-            setTimeout(() => {
-                this.switchVideo();
-            }, 50);
+            // Immediate switch to queued video
+            this.switchVideo();
         } else {
             // Check if current video is the idle video
             if (this.currentVideo === this.idleVideo) {
@@ -736,12 +858,10 @@ class VoiceVideoController {
                     console.error('Error looping idle video');
                 });
             } else {
-                // Non-idle video ended, return to idle video
+                // Non-idle video ended, return to idle video immediately
                 console.log('Non-idle video ended, returning to idle video:', this.idleVideo);
                 this.queuedVideo = this.idleVideo;
-                setTimeout(() => {
-                    this.switchVideo();
-                }, 50);
+                this.switchVideo();
             }
         }
     }
@@ -777,11 +897,11 @@ class VoiceVideoController {
      */
     loadRecognitionSettings() {
         const defaultSettings = {
-            continuous: false,
+            continuous: true, // Always true for streaming mode
             interimResults: true,
             language: 'zh-CN',
             maxAlternatives: 10,
-            confidenceThreshold: 0.5
+            confidenceThreshold: 0.3
         };
 
         try {
@@ -789,13 +909,45 @@ class VoiceVideoController {
             if (saved) {
                 const parsed = JSON.parse(saved);
                 console.log('Loaded recognition settings from localStorage:', parsed);
-                return { ...defaultSettings, ...parsed };
+                // Force continuous mode even if saved settings say otherwise
+                return { ...defaultSettings, ...parsed, continuous: true };
             }
         } catch (e) {
             console.error('Error loading recognition settings:', e);
         }
 
         return defaultSettings;
+    }
+
+    /**
+     * Load immediate switch setting from localStorage
+     */
+    loadImmediateSwitchSetting() {
+        try {
+            const saved = localStorage.getItem('immediateSwitch');
+            if (saved !== null) {
+                const value = JSON.parse(saved);
+                console.log('Loaded immediate switch setting from localStorage:', value);
+                return value;
+            }
+        } catch (e) {
+            console.error('Error loading immediate switch setting:', e);
+        }
+
+        // Default to true (immediate switch)
+        return true;
+    }
+
+    /**
+     * Save immediate switch setting to localStorage
+     */
+    saveImmediateSwitchSetting() {
+        try {
+            localStorage.setItem('immediateSwitch', JSON.stringify(this.immediateSwitch));
+            console.log('Saved immediate switch setting to localStorage:', this.immediateSwitch);
+        } catch (e) {
+            console.error('Error saving immediate switch setting:', e);
+        }
     }
 
     /**
@@ -950,7 +1102,13 @@ class VoiceVideoController {
             audio.currentTime = 0;
             audio.volume = this.audioAckVolume;
             audio.play().catch(err => {
-                console.error('Error playing acknowledgement audio:', err);
+                // Handle autoplay policy errors gracefully
+                if (err.name === 'NotAllowedError') {
+                    console.log('Audio playback blocked by browser autoplay policy. User interaction required first.');
+                    // Silently fail - audio will work after first user interaction
+                } else {
+                    console.error('Error playing acknowledgement audio:', err);
+                }
             });
             this.currentAudio = audio;
             console.log(`Playing audio: ${audioFile}`);
@@ -1029,10 +1187,10 @@ class VoiceVideoController {
 
                 <div class="setting-item">
                     <label>
-                        <input type="checkbox" id="continuousMode">
-                        连续模式
+                        <input type="checkbox" id="continuousMode" checked disabled>
+                        连续模式 (流式体验)
                     </label>
-                    <span class="setting-hint">持续监听，无需重复启动</span>
+                    <span class="setting-hint">自动启动，持续监听</span>
                 </div>
 
                 <div class="setting-item">
@@ -1041,6 +1199,14 @@ class VoiceVideoController {
                         实时结果
                     </label>
                     <span class="setting-hint">显示识别中的临时结果</span>
+                </div>
+
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="immediateSwitchToggle" checked>
+                        立即切换视频
+                    </label>
+                    <span class="setting-hint">收到命令后立即切换，不等待当前视频播放完毕</span>
                 </div>
 
                 <div class="setting-item">
@@ -1079,6 +1245,7 @@ class VoiceVideoController {
         const languageSelect = document.getElementById('recognitionLanguage');
         const continuousMode = document.getElementById('continuousMode');
         const interimResults = document.getElementById('interimResults');
+        const immediateSwitchToggle = document.getElementById('immediateSwitchToggle');
         const maxAlternatives = document.getElementById('maxAlternatives');
         const maxAlternativesValue = document.getElementById('maxAlternativesValue');
         const confidenceThreshold = document.getElementById('confidenceThreshold');
@@ -1086,8 +1253,9 @@ class VoiceVideoController {
 
         // Set initial values from saved settings
         languageSelect.value = this.recognitionSettings.language;
-        continuousMode.checked = this.recognitionSettings.continuous;
+        continuousMode.checked = true; // Always true for streaming mode
         interimResults.checked = this.recognitionSettings.interimResults;
+        immediateSwitchToggle.checked = this.immediateSwitch;
         maxAlternatives.value = this.recognitionSettings.maxAlternatives;
         maxAlternativesValue.textContent = this.recognitionSettings.maxAlternatives;
         confidenceThreshold.value = this.recognitionSettings.confidenceThreshold;
@@ -1104,15 +1272,16 @@ class VoiceVideoController {
             }
         });
 
-        continuousMode.addEventListener('change', (e) => {
-            this.recognitionSettings.continuous = e.target.checked;
-            this.saveRecognitionSettings();
-            console.log('Continuous mode:', e.target.checked);
-            if (this.isListening) {
-                this.stopListening();
-                setTimeout(() => this.startListening(), 300);
-            }
-        });
+        // Continuous mode is always enabled for streaming experience
+        // continuousMode.addEventListener('change', (e) => {
+        //     this.recognitionSettings.continuous = e.target.checked;
+        //     this.saveRecognitionSettings();
+        //     console.log('Continuous mode:', e.target.checked);
+        //     if (this.isListening) {
+        //         this.stopListening();
+        //         setTimeout(() => this.startListening(), 300);
+        //     }
+        // });
 
         interimResults.addEventListener('change', (e) => {
             this.recognitionSettings.interimResults = e.target.checked;
@@ -1122,6 +1291,12 @@ class VoiceVideoController {
                 this.stopListening();
                 setTimeout(() => this.startListening(), 300);
             }
+        });
+
+        immediateSwitchToggle.addEventListener('change', (e) => {
+            this.immediateSwitch = e.target.checked;
+            this.saveImmediateSwitchSetting();
+            console.log('Immediate switch:', e.target.checked);
         });
 
         maxAlternatives.addEventListener('input', (e) => {

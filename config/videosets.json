@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "defaultSet": "tiktok/set3",
+  "defaultSet": "tiktok/set1",
   "sets": {
     "tiktok/set3": {
       "id": "tiktok/set3",
@@ -101,10 +101,10 @@
           "id": "1.mp4",
           "path": "/videos/tiktok/set1/1.mp4",
           "name": "扭 (Twist)",
-          "description": "Idle/anchor video - loops continuously",
-          "duration": 4.0,
+          "description": "Idle/anchor/twist video - loops continuously",
+          "duration": 3.0,
           "isIdle": true,
-          "tags": ["idle", "anchor", "loop"]
+          "tags": ["idle", "anchor", "loop", "twist"]
         },
         {
           "id": "2.mp4",
@@ -130,21 +130,21 @@
       "commands": {
         "jump": {
           "video": "1.mp4",
-          "keywords": ["jump", "跳", "条", "调"],
-          "description": "Jump action",
-          "primaryKeyword": "跳"
+          "keywords": ["twist", "扭", "停", "读", "多", "留", "有", "牛", "了解"],
+          "description": "Twist action",
+          "primaryKeyword": "扭"
         },
         "circle": {
           "video": "2.mp4",
-          "keywords": ["circle", "转", "赚", "传", "专"],
-          "description": "Circle/rotate action",
-          "primaryKeyword": "转"
+          "keywords": ["shake", "抖", "斗", "豆", "读", "读起来", "抖起来", "都", "肚", "多"],
+          "description": "Shake action",
+          "primaryKeyword": "抖"
         },
         "stop": {
           "video": "3.mp4",
-          "keywords": ["stop", "停", "听", "挺", "庭"],
-          "description": "Stop action",
-          "primaryKeyword": "停"
+          "keywords": ["bounce", "颠", "点", "电", "垫"],
+          "description": "Bounce action",
+          "primaryKeyword": "颠"
         }
       },
       "buttons": [
