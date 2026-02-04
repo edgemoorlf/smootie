@@ -20,6 +20,7 @@ class VoiceVideoController {
         this.isVideoPlaying = false;
         this.isSwitching = false;
         this.idleVideo = null; // Will be set when loading video set
+        this.previousVideo = null; // Track previous video for special actions
 
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
@@ -338,7 +339,12 @@ class VoiceVideoController {
             btn.addEventListener('click', (e) => {
                 const video = e.target.getAttribute('data-video');
                 console.log('Manual button clicked:', video);
-                this.queueVideoSwitch(video);
+
+                // Check if this is a special button that returns to previous video
+                const videoConfig = this.videoFiles.find(v => v.id === video);
+                const isSpecialCommand = videoConfig && videoConfig.returnToPrevious;
+
+                this.queueVideoSwitch(video, isSpecialCommand);
             });
         });
     }
@@ -674,7 +680,11 @@ class VoiceVideoController {
                 console.log('Other matches ignored:', matches.slice(1).map(m => `${m.command} at ${m.position}`).join(', '));
             }
 
-            this.queueVideoSwitch(firstMatch.video);
+            // Check if this is a special command that returns to previous video
+            const commandConfig = this.configLoader.getCommandByKeyword(this.currentSet, firstMatch.command);
+            const isSpecialCommand = commandConfig && commandConfig.returnToPrevious;
+
+            this.queueVideoSwitch(firstMatch.video, isSpecialCommand);
             this.playAcknowledgement(firstMatch.command, true);
             return true;
         }
@@ -692,7 +702,7 @@ class VoiceVideoController {
         }
     }
 
-    queueVideoSwitch(videoFile) {
+    queueVideoSwitch(videoFile, isSpecialCommand = false) {
         if (videoFile === this.currentVideo) {
             // Already playing this video
             console.log('Video already playing, ignoring queue request');
@@ -703,6 +713,12 @@ class VoiceVideoController {
         if (videoFile === this.idleVideo && this.currentVideo === this.idleVideo) {
             console.log('Idle video already playing, ignoring queue request');
             return;
+        }
+
+        // Store previous video before switching (for special commands that return to previous)
+        if (isSpecialCommand) {
+            this.previousVideo = this.currentVideo;
+            console.log(`Special command detected, storing previous video: ${this.previousVideo}`);
         }
 
         // Set queued video
@@ -843,14 +859,22 @@ class VoiceVideoController {
     onVideoEnded() {
         console.log('onVideoEnded called, queuedVideo:', this.queuedVideo);
         console.log('Current video:', this.currentVideo, 'Idle video:', this.idleVideo);
+        console.log('Previous video:', this.previousVideo);
 
         if (this.queuedVideo) {
             console.log('Switching to queued video:', this.queuedVideo);
             // Immediate switch to queued video
             this.switchVideo();
         } else {
-            // Check if current video is the idle video
-            if (this.currentVideo === this.idleVideo) {
+            // Check if current video is a special video that should return to previous
+            const currentVideoConfig = this.videoFiles.find(v => v.id === this.currentVideo);
+            if (currentVideoConfig && currentVideoConfig.returnToPrevious && this.previousVideo) {
+                // Return to previous video
+                console.log('Special video ended, returning to previous video:', this.previousVideo);
+                this.queuedVideo = this.previousVideo;
+                this.previousVideo = null; // Clear previous video after using it
+                this.switchVideo();
+            } else if (this.currentVideo === this.idleVideo) {
                 // Loop the idle video
                 console.log('Looping idle video:', this.idleVideo);
                 this.activePlayer.currentTime = 0;

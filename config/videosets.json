@@ -123,6 +123,17 @@
           "duration": 3.8,
           "isIdle": false,
           "tags": ["action", "bounce"]
+        },
+        {
+          "id": "dance.mp4",
+          "path": "/videos/tiktok/set1/dance.mp4",
+          "name": "唱歌 (Sing/Dance)",
+          "description": "Dance action - plays once then returns to previous video",
+          "duration": 5.0,
+          "isIdle": false,
+          "isSpecial": true,
+          "returnToPrevious": true,
+          "tags": ["action", "dance", "sing", "special"]
         }
       ],
       "defaultVideo": "1.mp4",
@@ -145,6 +156,14 @@
           "keywords": ["bounce", "颠", "点", "电", "垫"],
           "description": "Bounce action",
           "primaryKeyword": "颠"
+        },
+        "dance": {
+          "video": "dance.mp4",
+          "keywords": ["sing", "唱歌", "唱", "歌", "跳舞", "舞"],
+          "description": "Sing/Dance action - returns to previous video",
+          "primaryKeyword": "唱歌",
+          "isSpecial": true,
+          "returnToPrevious": true
         }
       },
       "buttons": [
@@ -165,6 +184,12 @@
           "video": "3.mp4",
           "class": "stop-btn",
           "tooltip": "Bounce"
+        },
+        {
+          "label": "唱歌",
+          "video": "dance.mp4",
+          "class": "walk-btn",
+          "tooltip": "Sing/Dance"
         }
       ],
       "audioAck": {
@@ -175,9 +200,10 @@
           "/audio/common/received_zh.mp3"
         ],
         "specific": {
-          "跳": "/audio/tiktok/set1/jump_zh.mp3",
-          "转": "/audio/tiktok/set1/circle_zh.mp3",
-          "停": "/audio/tiktok/set1/stop_zh.mp3"
+          "扭": "/audio/tiktok/set1/twist_zh.mp3",
+          "抖": "/audio/tiktok/set1/shake_zh.mp3",
+          "颠": "/audio/tiktok/set1/bounce_zh.mp3",
+          "唱歌": "/audio/tiktok/set1/dance_zh.mp3"
         },
         "error": "/audio/common/error_zh.mp3"
       }
