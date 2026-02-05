@@ -414,6 +414,11 @@ class VoiceVideoController {
         this.stopBtn.style.display = 'inline-block';
         this.updateStatus('正在监听...');
         this.updateListeningIndicator('listening', '正在监听...');
+
+        // Unmute video players after user interaction (browser autoplay policy)
+        this.videoPlayer1.muted = false;
+        this.videoPlayer2.muted = false;
+        console.log('Video players unmuted after user interaction');
     }
 
     stopListening() {
