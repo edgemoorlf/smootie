@@ -4,16 +4,15 @@
 
 A web-based voice-controlled video player with audio acknowledgement that switches videos based on voice commands using browser speech recognition.
 
-## ✨ 新功能 v2.0.0 (New in v2.0.0)
+## ✨ 新功能 v2.1.0 (New in v2.1.0)
 
-🎉 **语音确认功能 (Voice Acknowledgement Feature)** - 系统现在会在识别到语音指令时播放音频反馈！
+🎉 **新增功能 (New Features)**:
 
-- 🔊 **音频反馈 (Audio Feedback)**: 命令识别成功时播放确认音
-- 🎛️ **音量控制 (Volume Control)**: 可调节音量或完全静音
-- 🌐 **多语言支持 (Multi-language)**: 支持中文和英文确认音
-- ⚙️ **外部配置 (External Config)**: JSON配置文件，易于定制
-- 📱 **移动友好 (Mobile Friendly)**: 桌面和移动设备均可使用
-- 🎯 **同音字匹配 (Homophone Matching)**: 智能识别相似发音的词（如"读起来"→"抖"）
+- 🎬 **立即切换视频** - 收到命令后立即切换，不等待当前视频播放完毕（可配置）
+- 🔄 **特殊动作支持** - 支持播放后返回上一个视频的特殊动作（如"唱歌"）
+- 📱 **响应式布局** - 大屏幕上视频和控制面板并排显示，小屏幕自动堆叠
+- 🎤 **语音识别自动恢复** - 识别中断后自动重启，更稳定的连续识别体验
+- 🔊 **视频音频支持** - 用户交互后自动取消静音，支持视频内音频播放
 
 ## 项目概述 (Project Overview)
 
@@ -42,6 +41,9 @@ Smootie is a voice-controlled video player using browser speech recognition for 
 - ✅ 动作视频单次播放后返回idle
 - ✅ 队列系统（最新指令覆盖）
 - ✅ 完全无黑屏切换
+- ✅ **立即切换模式** - 可配置是否立即切换或等待当前视频结束 🆕
+- ✅ **特殊动作支持** - 支持播放后返回上一个视频（如"唱歌"） 🆕
+- ✅ **视频音频播放** - 用户交互后自动取消静音 🆕
 
 ### 3. 多视频集支持 (Multiple Video Sets)
 - ✅ 可配置的视频集系统
@@ -62,12 +64,14 @@ Smootie is a voice-controlled video player using browser speech recognition for 
 
 ### 5. 用户界面 (User Interface)
 - ✅ 手动控制按钮（移动端友好）
-- ✅ 音频控制面板（音量、静音、开关）🆕
+- ✅ 音频控制面板（音量、静音、开关）
 - ✅ 实时状态显示
 - ✅ 视频集选择器
 - ✅ 动作列表显示
 - ✅ 响应式设计
 - ✅ 触摸优化
+- ✅ **并排布局** - 大屏幕上视频和控制面板并排显示 🆕
+- ✅ **"命令她/不要她"按钮** - 更直观的交互体验 🆕
 
 ### 6. 移动端支持 (Mobile Support)
 - ✅ 防止全屏模式
@@ -88,9 +92,10 @@ Smootie is a voice-controlled video player using browser speech recognition for 
 ### tiktok/set1
 | 命令 | 相似音 | 视频 | 说明 |
 |------|--------|------|------|
-| 跳 (jump) | 条/调 | 1.mp4 | Idle/Anchor 视频（循环） |
-| 转 (circle) | 赚/传/专 | 2.mp4 | 动作视频（单次播放） |
-| 停 (stop) | 听/挺/庭 | 3.mp4 | 动作视频（单次播放） |
+| 扭 (twist) | 停/读/多/留/有/牛 | 1.mp4 | Idle/Anchor 视频（循环） |
+| 抖 (shake) | 斗/豆/读/读起来/抖起来/都/肚/多 | 2.mp4 | 动作视频（单次播放） |
+| 颠 (bounce) | 点/电/垫 | 3.mp4 | 动作视频（单次播放） |
+| 唱歌 (sing) | 唱/歌/跳舞/舞 | dance.mp4 | **特殊动作** - 播放后返回上一个视频 🆕 |
 
 ### tiktok/set2
 | 命令 | 相似音 | 视频 | 说明 |
@@ -99,20 +104,28 @@ Smootie is a voice-controlled video player using browser speech recognition for 
 | 转 (circle) | 赚/传/专 | 5.mp4 | 动作视频（单次播放） |
 | 停 (stop) | 听/挺/庭 | 6.mp4 | Idle/Anchor 视频（循环） |
 
-## 视频播放逻辑 (Video Playback Logic)
+### 视频播放逻辑 (Video Playback Logic)
 
 ### Idle/Anchor 视频系统
 - **Idle视频**: 每个视频集有一个指定的idle/anchor视频
 - **循环播放**: Idle视频会持续循环播放
 - **动作视频**: 其他视频播放一次后自动返回idle视频
+- **特殊动作**: 标记为`returnToPrevious`的视频播放后返回上一个视频（而非idle） 🆕
 - **自然流程**: 角色保持idle状态 → 执行动作 → 返回idle状态
 
+### 立即切换模式 🆕
+- **立即切换（默认）**: 收到命令后立即切换到新视频，不等待当前视频播放完毕
+- **等待模式**: 可在设置中关闭立即切换，等待当前视频播放完毕后再切换
+- **设置持久化**: 用户偏好保存在localStorage中
+
 ### 工作流程
-1. 应用启动时播放idle视频（如set3的7.mp4）
-2. 用户说出命令或点击按钮
-3. 当前视频播放完毕后切换到目标视频
-4. 如果是动作视频，播放完毕后自动返回idle视频
-5. 如果是idle视频，持续循环播放
+1. 应用启动时播放idle视频（如set1的1.mp4）
+2. 用户点击"命令她"按钮启动语音识别
+3. 用户说出命令或点击按钮
+4. 立即切换到目标视频（或等待当前视频结束，取决于设置）
+5. 如果是动作视频，播放完毕后自动返回idle视频
+6. 如果是特殊动作（如"唱歌"），播放完毕后返回上一个视频
+7. 如果是idle视频，持续循环播放
 
 ## 技术架构 (Technical Architecture)
 
@@ -227,7 +240,7 @@ Starting from v2.0, all video set configurations have been moved to external JSO
 ```json
 {
   "version": "2.0.0",
-  "defaultSet": "tiktok/set3",
+  "defaultSet": "tiktok/set1",
   "sets": {
     "set-id": {
       "id": "string",
@@ -241,6 +254,8 @@ Starting from v2.0, all video set configurations have been moved to external JSO
           "description": "Video description",
           "duration": 5.2,
           "isIdle": true,
+          "isSpecial": false,
+          "returnToPrevious": false,
           "tags": ["tag1", "tag2"]
         }
       ],
@@ -251,7 +266,8 @@ Starting from v2.0, all video set configurations have been moved to external JSO
           "video": "video-id",
           "keywords": ["keyword1", "keyword2"],
           "description": "Command description",
-          "primaryKeyword": "keyword1"
+          "primaryKeyword": "keyword1",
+          "returnToPrevious": false
         }
       },
       "buttons": [
@@ -271,6 +287,31 @@ Starting from v2.0, all video set configurations have been moved to external JSO
         },
         "error": "/audio/common/error_zh.mp3"
       }
+    }
+  }
+}
+```
+
+### 特殊动作配置 (Special Action Configuration) 🆕
+
+要创建播放后返回上一个视频的特殊动作（如"唱歌"），需要在视频和命令配置中添加 `returnToPrevious: true`：
+
+```json
+{
+  "videos": [
+    {
+      "id": "dance.mp4",
+      "name": "唱歌 (Sing/Dance)",
+      "isSpecial": true,
+      "returnToPrevious": true
+    }
+  ],
+  "commands": {
+    "dance": {
+      "video": "dance.mp4",
+      "keywords": ["唱歌", "唱", "歌", "跳舞"],
+      "primaryKeyword": "唱歌",
+      "returnToPrevious": true
     }
   }
 }
@@ -363,8 +404,9 @@ python app.py
 # 访问 http://localhost:5001
 
 # 6. 开始使用
-# 点击"开始监听"并说出指令
-# 调整音量或静音（如需要）
+# 点击"命令她"按钮启动语音识别
+# 说出指令（如"抖"、"扭"、"唱歌"）
+# 点击"不要她"停止语音识别
 ```
 
 ## 关键技术实现 (Key Technical Implementations)
@@ -779,10 +821,15 @@ ffmpeg -i input.mp4 -vf scale=1280:720 -c:v libx264 -crf 28 output.mp4
 - [x] Idle/Anchor 视频系统
 - [x] 硬件加速优化
 - [x] 词汇限制和视觉反馈
-- [x] **语音确认功能** 🆕
-- [x] **外部配置系统** 🆕
-- [x] **音频预加载和播放** 🆕
-- [x] **音量控制UI** 🆕
+- [x] **语音确认功能**
+- [x] **外部配置系统**
+- [x] **音频预加载和播放**
+- [x] **音量控制UI**
+- [x] **立即切换视频模式** 🆕
+- [x] **特殊动作（返回上一视频）** 🆕
+- [x] **响应式并排布局** 🆕
+- [x] **语音识别自动恢复** 🆕
+- [x] **视频音频播放支持** 🆕
 - [x] 完整文档
 
 ### 可能的未来改进 (Possible Future Improvements)
@@ -818,13 +865,22 @@ MIT License - 详见 LICENSE 文件
 
 ## 更新日志 (Changelog)
 
+### Version 2.1.0 (2026-02-06)
+- ✅ **立即切换视频** - 收到命令后立即切换，可在设置中配置 🆕
+- ✅ **特殊动作支持** - 支持播放后返回上一个视频的动作（如"唱歌"） 🆕
+- ✅ **响应式并排布局** - 大屏幕上视频和控制面板并排显示 🆕
+- ✅ **语音识别自动恢复** - 识别中断或返回空结果时自动重启 🆕
+- ✅ **视频音频支持** - 用户点击"命令她"后自动取消视频静音 🆕
+- ✅ **改进的按钮文案** - "命令她"/"不要她"更直观的交互体验 🆕
+- ✅ **错误处理增强** - 更好的网络错误和麦克风错误恢复机制 🆕
+
 ### Version 2.0.0 (2026-01-29)
-- ✅ **语音确认功能** - 命令识别时播放音频反馈 🆕
-- ✅ **外部配置系统** - JSON配置文件，易于维护 🆕
-- ✅ **音频预加载** - 无延迟音频播放 🆕
-- ✅ **音量控制UI** - 音量滑块、静音按钮、开关 🆕
-- ✅ **同音字智能匹配** - 支持"读起来"→"抖"等同音词识别 🆕
-- ✅ **音频生成脚本** - 自动生成中文语音文件 🆕
+- ✅ **语音确认功能** - 命令识别时播放音频反馈
+- ✅ **外部配置系统** - JSON配置文件，易于维护
+- ✅ **音频预加载** - 无延迟音频播放
+- ✅ **音量控制UI** - 音量滑块、静音按钮、开关
+- ✅ **同音字智能匹配** - 支持"读起来"→"抖"等同音词识别
+- ✅ **音频生成脚本** - 自动生成中文语音文件
 - ✅ 多视频集配置系统
 - ✅ Idle/Anchor 视频循环系统
 - ✅ 动作视频单次播放
@@ -850,6 +906,6 @@ MIT License - 详见 LICENSE 文件
 
 ---
 
-**最后更新**: 2026-01-29
-**版本**: 2.0.0
+**最后更新**: 2026-02-06
+**版本**: 2.1.0
 **状态**: ✅ 生产就绪 (Production Ready)
