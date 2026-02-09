@@ -272,6 +272,27 @@ h1 {
     }
 }
 
+.intent-display {
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px;
+    background: #e8f5e9;
+    border-radius: 10px;
+    font-size: 1.3em;
+    border: 2px solid #4CAF50;
+}
+
+.intent-display strong {
+    color: #2e7d32;
+    margin-right: 10px;
+}
+
+.intent-display #intent {
+    color: #1b5e20;
+    font-weight: 700;
+    font-size: 1.2em;
+}
+
 .recognized-display {
     text-align: center;
     margin: 20px 0;

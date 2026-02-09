@@ -9,6 +9,7 @@ class VoiceVideoController {
         this.stopBtn = document.getElementById('stopBtn');
         this.statusEl = document.getElementById('status');
         this.recognizedEl = document.getElementById('recognized');
+        this.intentEl = document.getElementById('intent');
         this.currentVideoEl = document.getElementById('currentVideo');
         this.queuedVideoEl = document.getElementById('queuedVideo');
         this.listeningIndicator = document.querySelector('.listening-indicator');
@@ -449,13 +450,13 @@ class VoiceVideoController {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
 
-        // Force continuous mode for streaming experience
-        this.recognition.continuous = true;
+        // Use non-continuous mode for short, discrete commands
+        this.recognition.continuous = false;
         this.recognition.interimResults = this.recognitionSettings.interimResults;
         this.recognition.lang = this.recognitionSettings.language;
         this.recognition.maxAlternatives = this.recognitionSettings.maxAlternatives;
 
-        console.log('Starting recognition in continuous streaming mode');
+        console.log('Starting recognition in discrete command mode');
         console.log('Valid commands:', Object.keys(this.commandMap));
 
         this.recognition.onresult = (event) => {
@@ -578,6 +579,8 @@ class VoiceVideoController {
 
         this.recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
+            console.log('Error details - type:', event.type, 'error:', event.error, 'message:', event.message);
+
             if (event.error === 'no-speech') {
                 console.log('No speech detected, continuing...');
                 this.updateListeningIndicator('listening', '等待语音...');
@@ -619,31 +622,61 @@ class VoiceVideoController {
 
         this.recognition.onend = () => {
             console.log('Recognition ended, isListening:', this.isListening);
+            console.log('Recognition object exists:', !!this.recognition);
+
             if (this.isListening) {
-                // Immediately restart recognition for continuous streaming
+                // Restart recognition immediately for next command
+                console.log('Attempting to restart recognition for next command...');
                 setTimeout(() => {
+                    if (!this.isListening) {
+                        console.log('isListening is now false, aborting restart');
+                        return;
+                    }
+
                     try {
+                        if (!this.recognition) {
+                            console.error('Recognition object is null, recreating...');
+                            this.startBrowserRecognition();
+                            return;
+                        }
+
                         this.recognition.start();
-                        console.log('Recognition restarted in continuous mode');
+                        console.log('Recognition restarted for next command');
                     } catch (e) {
                         console.error('Error restarting recognition:', e);
+                        console.log('Error name:', e.name, 'Error message:', e.message);
+
+                        // If already started, just log and continue
+                        if (e.name === 'InvalidStateError') {
+                            console.log('Recognition already running, continuing...');
+                            return;
+                        }
+
                         // Try again after a longer delay if there was an error
                         setTimeout(() => {
                             if (this.isListening) {
                                 try {
+                                    console.log('Second restart attempt...');
                                     this.recognition.start();
+                                    console.log('Recognition restarted on second attempt');
                                 } catch (e2) {
-                                    console.error('Failed to restart recognition:', e2);
+                                    console.error('Failed to restart recognition on second attempt:', e2);
+                                    // Last resort: recreate the recognition object
+                                    console.log('Recreating recognition object...');
+                                    this.startBrowserRecognition();
                                 }
                             }
                         }, 1000);
                     }
-                }, 100); // Minimal delay for continuous streaming
+                }, 300); // Slightly longer delay for discrete commands
+            } else {
+                console.log('isListening is false, not restarting recognition');
             }
         };
 
         this.recognition.onstart = () => {
             console.log('Recognition started');
+            console.log('Recognition state - isListening:', this.isListening, 'continuous:', this.recognition.continuous);
             this.updateStatus('正在监听...');
             this.updateListeningIndicator('listening', '正在监听...');
         };
@@ -707,12 +740,17 @@ class VoiceVideoController {
             const commandConfig = this.configLoader.getCommandByKeyword(this.currentSet, firstMatch.command);
             const isSpecialCommand = commandConfig && commandConfig.returnToPrevious;
 
+            // Update intent display with action name + "起来"
+            this.updateIntentDisplay(commandConfig);
+
             this.queueVideoSwitch(firstMatch.video, isSpecialCommand);
             this.playAcknowledgement(firstMatch.command, true);
             return true;
         }
 
         console.log('No match found for:', text);
+        // Clear intent display on no match
+        this.intentEl.textContent = '-';
         // Play error acknowledgement for unmatched commands
         this.playAcknowledgement(text, false);
         return false;
@@ -915,6 +953,21 @@ class VoiceVideoController {
 
     updateStatus(status) {
         this.statusEl.textContent = status;
+    }
+
+    updateIntentDisplay(commandConfig) {
+        if (!commandConfig || !this.intentEl) {
+            return;
+        }
+
+        // Get the primary keyword (the main action name)
+        const primaryKeyword = commandConfig.primaryKeyword;
+
+        // Display as "action起来" (e.g., "扭起来", "抖起来", "唱起来")
+        const intentText = `${primaryKeyword}起来`;
+        this.intentEl.textContent = intentText;
+
+        console.log('Intent recognized:', intentText);
     }
 
     updateButtonPressedState(text) {
