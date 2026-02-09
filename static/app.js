@@ -21,6 +21,7 @@ class VoiceVideoController {
         this.isSwitching = false;
         this.idleVideo = null; // Will be set when loading video set
         this.previousVideo = null; // Track previous video for special actions
+        this.lastProcessedInterim = null; // Track last processed interim result to avoid duplicates
 
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
@@ -555,6 +556,23 @@ class VoiceVideoController {
                 this.recognizedEl.textContent = text + ' (...)';
                 this.updateButtonPressedState(text);
                 this.updateListeningIndicator('listening', '识别中...');
+
+                // Also try to match interim results for faster response
+                // This helps when final results are delayed or never arrive
+                if (text.length > 0 && !this.lastProcessedInterim) {
+                    const matched = this.tryProcessCommand(text);
+                    if (matched) {
+                        console.log('Matched from interim result:', text);
+                        this.lastProcessedInterim = text;
+                        this.recognizedEl.textContent = `✓ ${text} (interim)`;
+                        this.updateListeningIndicator('listening', '✓ 匹配成功');
+
+                        // Clear the interim flag after a delay to allow new commands
+                        setTimeout(() => {
+                            this.lastProcessedInterim = null;
+                        }, 2000);
+                    }
+                }
             }
         };
 
