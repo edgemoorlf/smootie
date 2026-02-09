@@ -141,13 +141,13 @@
       "commands": {
         "jump": {
           "video": "1.mp4",
-          "keywords": ["twist", "扭", "停", "留", "有", "牛", "了解", "你", "离", "里", "六", "嘞"],
+          "keywords": ["twist", "扭", "停", "留", "有", "牛", "了解", "你", "离", "里", "六", "嘞", "纽"],
           "description": "Twist action",
           "primaryKeyword": "扭"
         },
         "circle": {
           "video": "2.mp4",
-          "keywords": ["shake", "抖", "斗", "豆", "读", "都", "肚", "多", "对", "得", "动", "带", "打"],
+          "keywords": ["shake", "抖", "斗", "豆", "读", "都", "肚", "多", "对", "得", "动", "带", "打", "等", "董"],
           "description": "Shake action",
           "primaryKeyword": "抖"
         },
