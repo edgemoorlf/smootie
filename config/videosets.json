@@ -210,7 +210,33 @@
       "conversation": {
         "enabled": true,
         "talkVideo": "/videos/tiktok/set1/talk.mp4",
-        "sessionId": "set1_session"
+        "sessionId": "set1_session",
+        "actions": [
+          {
+            "action": "twist",
+            "video": "1.mp4",
+            "keywords": ["扭", "twist"],
+            "has_audio": false
+          },
+          {
+            "action": "shake",
+            "video": "2.mp4",
+            "keywords": ["抖", "shake"],
+            "has_audio": false
+          },
+          {
+            "action": "bounce",
+            "video": "3.mp4",
+            "keywords": ["颠", "bounce"],
+            "has_audio": false
+          },
+          {
+            "action": "sing",
+            "video": "dance.mp4",
+            "keywords": ["唱歌", "跳舞", "sing", "dance"],
+            "has_audio": true
+          }
+        ]
       }
     },
     "tiktok/set2": {

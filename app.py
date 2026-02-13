@@ -42,11 +42,12 @@ def serve_config(filename):
 
 @app.route('/api/chat/stream', methods=['POST'])
 def chat_stream():
-    """Stream LLM responses using DashScope"""
+    """Stream LLM responses using DashScope with function calling"""
     try:
         data = request.json
         user_message = data.get('message', '')
         session_id = data.get('session_id', 'default')
+        actions = data.get('actions', [])  # Available actions from video set config
 
         if not user_message:
             return jsonify({'error': 'No message provided'}), 400
@@ -57,11 +58,33 @@ def chat_stream():
 
         history = conversation_histories[session_id]
 
+        # Build system prompt with available actions
+        system_content = '你是一个甜美、性感、撩人的女孩。你的回答要简短、俏皮、带有一点挑逗的语气。每次回答控制在1-2句话以内，让对话更自然流畅。'
+
+        if actions:
+            system_content += '\n\n你可以执行以下动作：'
+            for action in actions:
+                action_name = action.get('action', '')
+                video_id = action.get('video', '')
+                has_audio = action.get('has_audio', False)
+                keywords = action.get('keywords', [])
+
+                if has_audio:
+                    system_content += f'\n- {action_name} (视频: {video_id}, 有预录音频): 当用户要求"{keywords[0]}"等相关动作时调用'
+                else:
+                    system_content += f'\n- {action_name} (视频: {video_id}, 需要TTS): 当用户要求"{keywords[0]}"等相关动作时调用'
+
+            system_content += '\n\n重要规则：'
+            system_content += '\n1. 使用语义理解检测用户意图，不要只匹配关键词。例如"扭一下"、"我想看你扭"、"能扭吗"都应该触发扭动作。'
+            system_content += '\n2. 对于有预录音频的视频(has_audio=true)，调用函数时返回空文本，因为视频自带回复。'
+            system_content += '\n3. 对于需要TTS的视频(has_audio=false)，调用函数的同时返回自然的文本回复。'
+            system_content += '\n4. 灵活理解自然语言，不要死板匹配关键词。'
+
         # Build messages with system prompt and history
         messages = [
             {
                 'role': 'system',
-                'content': '你是一个甜美、性感、撩人的女孩。你的回答要简短、俏皮、带有一点挑逗的语气。每次回答控制在1-2句话以内，让对话更自然流畅。'
+                'content': system_content
             }
         ]
 
@@ -71,30 +94,83 @@ def chat_stream():
         # Add current user message
         messages.append({'role': 'user', 'content': user_message})
 
+        # Define function calling tools if actions are available
+        tools = None
+        if actions:
+            tools = [{
+                "type": "function",
+                "function": {
+                    "name": "play_action_video",
+                    "description": "Play an action video when user requests a specific action like twist (扭), shake (抖), bounce (颠), or sing/dance (唱歌). Use semantic understanding to detect intent, not just keyword matching.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string",
+                                "description": "The action to perform"
+                            },
+                            "video_id": {
+                                "type": "string",
+                                "description": "The video file to play (e.g., '1.mp4', '2.mp4', '3.mp4', 'dance.mp4')"
+                            },
+                            "has_audio": {
+                                "type": "boolean",
+                                "description": "Whether the video has pre-recorded audio (true) or needs TTS (false)",
+                                "default": False
+                            }
+                        },
+                        "required": ["action", "video_id"]
+                    }
+                }
+            }]
+
         def generate():
-            """Generator function for streaming responses"""
+            """Generator function for streaming responses with function calling"""
             try:
                 full_response = ''
+                function_calls = []
 
-                # Call DashScope streaming API
-                responses = Generation.call(
-                    model='qwen-turbo',
-                    messages=messages,
-                    result_format='message',
-                    stream=True,
-                    incremental_output=True,
-                    temperature=0.8,
-                    max_tokens=200
-                )
+                # Call DashScope streaming API with tools
+                call_params = {
+                    'model': 'qwen-turbo',
+                    'messages': messages,
+                    'result_format': 'message',
+                    'stream': True,
+                    'incremental_output': True,
+                    'temperature': 0.8,
+                    'max_tokens': 200
+                }
+
+                if tools:
+                    call_params['tools'] = tools
+
+                responses = Generation.call(**call_params)
 
                 for response in responses:
                     if response.status_code == HTTPStatus.OK:
-                        # Get the incremental text
-                        chunk = response.output.choices[0].message.content
-                        full_response += chunk
+                        choice = response.output.choices[0]
+                        message = choice.message
 
-                        # Send chunk to frontend
-                        yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
+                        # Check for function calls
+                        if hasattr(message, 'tool_calls') and message.tool_calls:
+                            for tool_call in message.tool_calls:
+                                if tool_call.function:
+                                    function_call_data = {
+                                        'name': tool_call.function.name,
+                                        'arguments': json.loads(tool_call.function.arguments)
+                                    }
+                                    function_calls.append(function_call_data)
+
+                                    # Send function call to frontend
+                                    yield f"data: {json.dumps({'type': 'function_call', 'function': function_call_data})}\n\n"
+
+                        # Check for text content
+                        if message.content:
+                            chunk = message.content
+                            full_response += chunk
+
+                            # Send chunk to frontend
+                            yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
                     else:
                         error_msg = f"Error: {response.code} - {response.message}"
                         yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
@@ -102,7 +178,12 @@ def chat_stream():
 
                 # Save to conversation history
                 history.append({'role': 'user', 'content': user_message})
-                history.append({'role': 'assistant', 'content': full_response})
+
+                # Build assistant response for history
+                assistant_message = {'role': 'assistant', 'content': full_response}
+                if function_calls:
+                    assistant_message['tool_calls'] = function_calls
+                history.append(assistant_message)
 
                 # Send completion signal
                 yield f"data: {json.dumps({'type': 'done', 'content': full_response})}\n\n"
@@ -110,6 +191,8 @@ def chat_stream():
             except Exception as e:
                 error_msg = f"Exception: {str(e)}"
                 print(f"Error in generate(): {error_msg}")
+                import traceback
+                traceback.print_exc()
                 yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
 
         return Response(

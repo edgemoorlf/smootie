@@ -17,11 +17,15 @@ class DashScopeClient {
     /**
      * Stream chat response from LLM
      * @param {string} message - User message
-     * @param {function} onChunk - Callback for each text chunk
-     * @param {function} onComplete - Callback when streaming completes
-     * @param {function} onError - Callback for errors
+     * @param {object} options - Options object
+     * @param {function} options.onChunk - Callback for each text chunk
+     * @param {function} options.onFunctionCall - Callback for function calls
+     * @param {function} options.onComplete - Callback when streaming completes
+     * @param {function} options.onError - Callback for errors
+     * @param {array} options.actions - Available actions for function calling
      */
-    async streamChat(message, onChunk, onComplete, onError) {
+    async streamChat(message, options) {
+        const { onChunk, onFunctionCall, onComplete, onError, actions } = options;
         if (this.isStreaming) {
             console.warn('Already streaming, ignoring new request');
             return;
@@ -35,15 +39,22 @@ class DashScopeClient {
             const url = `${this.baseUrl}/api/chat/stream`;
 
             // EventSource doesn't support POST, so we'll use fetch with streaming
+            const requestBody = {
+                message: message,
+                session_id: this.sessionId
+            };
+
+            // Add actions if provided
+            if (actions && actions.length > 0) {
+                requestBody.actions = actions;
+            }
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    message: message,
-                    session_id: this.sessionId
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
@@ -75,6 +86,11 @@ class DashScopeClient {
                                 fullResponse += data.content;
                                 if (onChunk) {
                                     onChunk(data.content, fullResponse);
+                                }
+                            } else if (data.type === 'function_call') {
+                                console.log('Function call received:', data.function);
+                                if (onFunctionCall) {
+                                    onFunctionCall(data.function);
                                 }
                             } else if (data.type === 'done') {
                                 console.log('Stream completed, full response:', fullResponse);

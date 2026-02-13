@@ -47,6 +47,7 @@ class VoiceVideoController {
         this.talkVideo = null; // Talk video path
         this.ttsAudio = null; // Current TTS audio element
         this.ttsQueue = []; // Queue of TTS audio to play
+        this.conversationActions = []; // Available actions for function calling
 
         // Speech recognition retry logic
         this.recognitionRetryCount = 0;
@@ -152,14 +153,17 @@ class VoiceVideoController {
         if (config.conversation) {
             this.conversationEnabled = config.conversation.enabled !== false;
             this.talkVideo = config.conversation.talkVideo;
+            this.conversationActions = config.conversation.actions || [];
             if (config.conversation.sessionId) {
                 this.dashscopeClient.sessionId = config.conversation.sessionId;
             }
             console.log(`Conversation mode: ${this.conversationEnabled ? 'enabled' : 'disabled'}`);
             console.log(`Talk video: ${this.talkVideo}`);
+            console.log(`Available actions for function calling:`, this.conversationActions);
         } else {
             this.conversationEnabled = false;
             this.talkVideo = null;
+            this.conversationActions = [];
         }
 
         console.log(`Loaded video set: ${setName}`, config);
@@ -617,9 +621,9 @@ class VoiceVideoController {
                     } else {
                         this.updateListeningIndicator('error', '✗ 未匹配');
 
-                        // Trigger conversation mode if enabled
+                        // Always trigger conversation mode if enabled (no command matching in voice recognition)
                         if (this.conversationEnabled && this.dashscopeClient) {
-                            console.log('No command matched, starting conversation with:', text);
+                            console.log('Starting conversation with:', text);
                             this.startConversation(text);
                         } else {
                             // Only play error sound if conversation mode is disabled
@@ -901,18 +905,18 @@ class VoiceVideoController {
 
     processCommand(text) {
         console.log('Processing command:', text);
-        if (!this.tryProcessCommand(text)) {
-            console.log('No command matched');
 
-            // If conversation mode is enabled, trigger DashScope conversation
-            if (this.conversationEnabled && this.dashscopeClient) {
-                console.log('No command matched, starting conversation with:', text);
-                this.startConversation(text);
-            } else {
-                // Only play error sound if conversation mode is disabled
-                console.log('Conversation mode disabled, playing error acknowledgement');
-                this.playAcknowledgement(text, false);
-            }
+        // If conversation mode is enabled, always send to LLM for semantic understanding
+        if (this.conversationEnabled && this.dashscopeClient) {
+            console.log('Conversation mode enabled, sending to LLM:', text);
+            this.startConversation(text);
+            return;
+        }
+
+        // Otherwise, use traditional command matching (for when conversation is disabled)
+        if (!this.tryProcessCommand(text)) {
+            console.log('No command matched and conversation mode disabled');
+            this.playAcknowledgement(text, false);
         }
     }
 
@@ -1744,105 +1748,169 @@ class VoiceVideoController {
 
         let fullResponse = '';
         let firstChunk = true;
+        let hasAudioVideo = false; // Track if function call has pre-recorded audio
 
         try {
             await this.dashscopeClient.streamChat(
                 userMessage,
-                // onChunk - called for each text chunk
-                (chunk, accumulated) => {
-                    fullResponse = accumulated;
-                    console.log('LLM chunk:', chunk);
+                {
+                    // onChunk - called for each text chunk
+                    onChunk: (chunk, accumulated) => {
+                        fullResponse = accumulated;
+                        console.log('LLM chunk:', chunk);
 
-                    // Update recognized display with response
-                    this.recognizedEl.textContent = `💬 ${accumulated}`;
+                        // Update recognized display with response
+                        this.recognizedEl.textContent = `💬 ${accumulated}`;
 
-                    // For first chunk, start TTS immediately for low latency
-                    if (firstChunk) {
-                        firstChunk = false;
-                        this.updateListeningIndicator('processing', '💬 回复中...');
-                    }
-                },
-                // onComplete - called when streaming finishes
-                async (response) => {
-                    console.log('LLM complete, full response:', response);
+                        // For first chunk, start TTS immediately for low latency
+                        if (firstChunk) {
+                            firstChunk = false;
+                            this.updateListeningIndicator('processing', '💬 回复中...');
+                        }
+                    },
+                    // onFunctionCall - called when LLM triggers a function
+                    onFunctionCall: (functionCall) => {
+                        console.log('Function call received:', functionCall);
 
-                    // Synthesize the full response to speech
-                    try {
-                        this.updateListeningIndicator('processing', '🔊 合成语音...');
-                        console.log('Calling synthesizeSpeech with text:', response);
+                        if (functionCall.name === 'play_action_video') {
+                            const args = functionCall.arguments;
+                            const videoId = args.video_id;
+                            const hasAudio = args.has_audio || false;
 
-                        const audioBlob = await this.dashscopeClient.synthesizeSpeech(response);
-                        console.log('TTS synthesis complete, blob size:', audioBlob.size, 'type:', audioBlob.type);
+                            console.log(`Playing action video: ${videoId}, has_audio: ${hasAudio}`);
 
-                        // Play TTS audio
-                        console.log('Starting TTS playback...');
+                            // Queue the action video to play
+                            this.queueVideoSwitch(videoId, false);
 
-                        // Stop voice recognition during TTS to avoid feedback loop
-                        const wasListening = this.isListening;
-                        if (wasListening && this.recognition) {
-                            console.log('Stopping voice recognition during TTS playback');
-                            try {
-                                this.recognition.stop();
-                            } catch (e) {
-                                console.error('Error stopping recognition:', e);
+                            // If video has pre-recorded audio, skip TTS
+                            if (hasAudio) {
+                                hasAudioVideo = true;
+                                console.log('Video has pre-recorded audio, will skip TTS');
                             }
                         }
+                    },
+                    // onComplete - called when streaming finishes
+                    onComplete: async (response) => {
+                        console.log('LLM complete, full response:', response);
 
-                        await this.playTTS(audioBlob);
-                        console.log('TTS playback complete');
+                        // If video has pre-recorded audio, skip TTS synthesis
+                        if (hasAudioVideo) {
+                            console.log('Skipping TTS - video has pre-recorded audio');
 
-                        // Restart voice recognition after TTS with a small delay
-                        if (wasListening) {
-                            console.log('Restarting voice recognition after TTS');
-                            setTimeout(() => {
-                                if (!this.isListening) {
-                                    this.startBrowserRecognition();
-                                }
-                            }, 500); // Small delay to ensure TTS audio is fully stopped
+                            // Stop talk video loop immediately
+                            this.stopTalkVideoLoop();
+                            this.isTalking = false;
+
+                            // Return to listening state
+                            this.updateStatus('正在监听...');
+                            this.updateListeningIndicator('listening', '正在监听...');
+                            this.intentEl.textContent = '-';
+
+                            // Restart voice recognition if it was listening
+                            const wasListening = this.isListening;
+                            if (wasListening) {
+                                console.log('Restarting voice recognition after action video');
+                                setTimeout(() => {
+                                    if (!this.isListening) {
+                                        this.startBrowserRecognition();
+                                    }
+                                }, 500);
+                            }
+
+                            return;
                         }
 
-                        // After TTS finishes, stop talk video and return to idle
-                        this.stopTalkVideoLoop();
-                        this.isTalking = false;
+                        // Synthesize the full response to speech (only if no pre-recorded audio)
+                        if (response && response.trim().length > 0) {
+                            try {
+                                this.updateListeningIndicator('processing', '🔊 合成语音...');
+                                console.log('Calling synthesizeSpeech with text:', response);
 
-                        // BGM volume is controlled by conversation mode toggle, not restored here
+                                const audioBlob = await this.dashscopeClient.synthesizeSpeech(response);
+                                console.log('TTS synthesis complete, blob size:', audioBlob.size, 'type:', audioBlob.type);
 
-                        // Return to listening state
-                        this.updateStatus('正在监听...');
-                        this.updateListeningIndicator('listening', '正在监听...');
-                        this.intentEl.textContent = '-';
+                                // Play TTS audio
+                                console.log('Starting TTS playback...');
 
-                    } catch (error) {
-                        console.error('Error in TTS:', error);
-                        console.error('Error stack:', error.stack);
+                                // Stop voice recognition during TTS to avoid feedback loop
+                                const wasListening = this.isListening;
+                                if (wasListening && this.recognition) {
+                                    console.log('Stopping voice recognition during TTS playback');
+                                    try {
+                                        this.recognition.stop();
+                                    } catch (e) {
+                                        console.error('Error stopping recognition:', e);
+                                    }
+                                }
+
+                                await this.playTTS(audioBlob);
+                                console.log('TTS playback complete');
+
+                                // Restart voice recognition after TTS with a small delay
+                                if (wasListening) {
+                                    console.log('Restarting voice recognition after TTS');
+                                    setTimeout(() => {
+                                        if (!this.isListening) {
+                                            this.startBrowserRecognition();
+                                        }
+                                    }, 500); // Small delay to ensure TTS audio is fully stopped
+                                }
+
+                                // After TTS finishes, stop talk video and return to idle
+                                this.stopTalkVideoLoop();
+                                this.isTalking = false;
+
+                                // BGM volume is controlled by conversation mode toggle, not restored here
+
+                                // Return to listening state
+                                this.updateStatus('正在监听...');
+                                this.updateListeningIndicator('listening', '正在监听...');
+                                this.intentEl.textContent = '-';
+
+                            } catch (error) {
+                                console.error('Error in TTS:', error);
+                                console.error('Error stack:', error.stack);
+                                this.stopTalkVideoLoop();
+                                this.isTalking = false;
+
+                                // BGM volume is controlled by conversation mode toggle
+
+                                this.updateStatus('TTS错误');
+                                this.updateListeningIndicator('error', 'TTS错误');
+                            }
+                        } else {
+                            // No text response, just stop talk video
+                            console.log('No text response, stopping talk video');
+                            this.stopTalkVideoLoop();
+                            this.isTalking = false;
+
+                            this.updateStatus('正在监听...');
+                            this.updateListeningIndicator('listening', '正在监听...');
+                            this.intentEl.textContent = '-';
+                        }
+                    },
+                    // onError - called on error
+                    onError: (error) => {
+                        console.error('LLM error:', error);
                         this.stopTalkVideoLoop();
                         this.isTalking = false;
 
                         // BGM volume is controlled by conversation mode toggle
 
-                        this.updateStatus('TTS错误');
-                        this.updateListeningIndicator('error', 'TTS错误');
-                    }
-                },
-                // onError - called on error
-                (error) => {
-                    console.error('LLM error:', error);
-                    this.stopTalkVideoLoop();
-                    this.isTalking = false;
+                        this.updateStatus('对话错误');
+                        this.updateListeningIndicator('error', '对话错误');
+                        this.recognizedEl.textContent = `✗ 错误: ${error.message}`;
 
-                    // BGM volume is controlled by conversation mode toggle
-
-                    this.updateStatus('对话错误');
-                    this.updateListeningIndicator('error', '对话错误');
-                    this.recognizedEl.textContent = `✗ 错误: ${error.message}`;
-
-                    // Return to listening after a delay
-                    setTimeout(() => {
-                        if (this.isListening) {
-                            this.updateStatus('正在监听...');
-                            this.updateListeningIndicator('listening', '正在监听...');
-                        }
-                    }, 2000);
+                        // Return to listening after a delay
+                        setTimeout(() => {
+                            if (this.isListening) {
+                                this.updateStatus('正在监听...');
+                                this.updateListeningIndicator('listening', '正在监听...');
+                            }
+                        }, 2000);
+                    },
+                    // Pass available actions for function calling
+                    actions: this.conversationActions
                 }
             );
 
