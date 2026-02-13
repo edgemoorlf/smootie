@@ -141,19 +141,19 @@
       "commands": {
         "jump": {
           "video": "1.mp4",
-          "keywords": ["twist", "扭", "停", "留", "有", "牛", "了解", "你", "离", "里", "六", "嘞", "纽"],
+          "keywords": ["twist", "扭", "停", "留", "牛", "了解", "离", "里", "六", "嘞", "纽"],
           "description": "Twist action",
           "primaryKeyword": "扭"
         },
         "circle": {
           "video": "2.mp4",
-          "keywords": ["shake", "抖", "斗", "豆", "读", "都", "肚", "多", "对", "得", "动", "带", "打", "等", "董", "躲"],
+          "keywords": ["shake", "抖", "斗", "豆", "读", "都", "肚", "多", "对", "得", "动", "带", "等", "董", "躲"],
           "description": "Shake action",
           "primaryKeyword": "抖"
         },
         "stop": {
           "video": "3.mp4",
-          "keywords": ["bounce", "颠", "点", "电", "垫", "第", "天", "踮", "店"],
+          "keywords": ["bounce", "颠", "点", "电", "垫", "第", "踮", "店"],
           "description": "Bounce action",
           "primaryKeyword": "颠"
         },
@@ -206,6 +206,11 @@
           "唱歌": "/audio/tiktok/set1/dance_zh.mp3"
         },
         "error": "/audio/common/error_zh.mp3"
+      },
+      "conversation": {
+        "enabled": true,
+        "talkVideo": "/videos/tiktok/set1/talk.mp4",
+        "sessionId": "set1_session"
       }
     },
     "tiktok/set2": {

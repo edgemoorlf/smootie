@@ -23,6 +23,8 @@ class VoiceVideoController {
         this.idleVideo = null; // Will be set when loading video set
         this.previousVideo = null; // Track previous video for special actions
         this.lastProcessedInterim = null; // Track last processed interim result to avoid duplicates
+        this.recognitionTimeout = null; // Timeout to force restart if stuck
+        this.lastRecognitionTime = Date.now(); // Track when we last got a result
 
         // Preloaded video elements for smooth switching
         this.preloadedVideos = {};
@@ -37,6 +39,22 @@ class VoiceVideoController {
         this.audioAckVolume = 0.7;
         this.preloadedAudio = {};
         this.currentAudio = null;
+
+        // DashScope conversation properties
+        this.dashscopeClient = null;
+        this.conversationEnabled = this.loadConversationEnabled(); // Load from localStorage
+        this.isTalking = false; // Is currently in conversation mode
+        this.talkVideo = null; // Talk video path
+        this.ttsAudio = null; // Current TTS audio element
+        this.ttsQueue = []; // Queue of TTS audio to play
+
+        // Speech recognition retry logic
+        this.recognitionRetryCount = 0;
+        this.maxRecognitionRetries = 3; // Reduced from 5 to fail faster
+        this.recognitionRetryDelay = 1000; // Reduced from 2000ms to 1000ms
+        this.isRestarting = false; // Flag to prevent concurrent restarts
+        this.restartTimeout = null; // Track restart timeout
+        this.useDashScopeASR = false; // Fallback to DashScope ASR if browser fails
 
         // Speech recognition settings - load from localStorage or use defaults
         this.recognitionSettings = this.loadRecognitionSettings();
@@ -72,6 +90,10 @@ class VoiceVideoController {
 
             // Load configuration for current set
             this.loadVideoSet(this.currentSet);
+
+            // Initialize DashScope client
+            this.dashscopeClient = new DashScopeClient();
+            console.log('DashScope client initialized');
 
             // Preload audio files for current set
             await this.preloadAudioFiles();
@@ -126,6 +148,20 @@ class VoiceVideoController {
         this.currentVideo = config.defaultVideo;
         this.idleVideo = config.idleVideo; // Store the idle/anchor video
 
+        // Load conversation config if available
+        if (config.conversation) {
+            this.conversationEnabled = config.conversation.enabled !== false;
+            this.talkVideo = config.conversation.talkVideo;
+            if (config.conversation.sessionId) {
+                this.dashscopeClient.sessionId = config.conversation.sessionId;
+            }
+            console.log(`Conversation mode: ${this.conversationEnabled ? 'enabled' : 'disabled'}`);
+            console.log(`Talk video: ${this.talkVideo}`);
+        } else {
+            this.conversationEnabled = false;
+            this.talkVideo = null;
+        }
+
         console.log(`Loaded video set: ${setName}`, config);
         console.log(`Available commands: ${Object.keys(config.commands).join(', ')}`);
         console.log(`Idle video: ${this.idleVideo}`);
@@ -140,6 +176,20 @@ class VoiceVideoController {
 
         // Add audio controls
         this.createAudioControls();
+
+        // Add conversation mode toggle
+        this.createConversationToggle();
+
+        // Set initial BGM volume based on conversation mode
+        if (this.conversationEnabled) {
+            this.videoPlayer1.volume = 0;
+            this.videoPlayer2.volume = 0;
+            console.log('Initial BGM muted (conversation mode enabled)');
+        } else {
+            this.videoPlayer1.volume = 0.2;
+            this.videoPlayer2.volume = 0.2;
+            console.log('Initial BGM set to 0.2 (conversation mode disabled)');
+        }
 
         // Preload all videos first
         this.preloadVideos().then(() => {
@@ -410,6 +460,12 @@ class VoiceVideoController {
     }
 
     startListening() {
+        console.log('startListening called');
+
+        // Reset flags
+        this.isRestarting = false;
+        this.recognitionRetryCount = 0;
+
         this.startBrowserRecognition();
         this.isListening = true;
         this.startBtn.style.display = 'none';
@@ -424,6 +480,8 @@ class VoiceVideoController {
     }
 
     stopListening() {
+        console.log('stopListening called');
+
         if (this.recognition) {
             try {
                 this.recognition.stop();
@@ -433,7 +491,17 @@ class VoiceVideoController {
             this.recognition = null;
         }
 
+        // Clear any pending timeouts
+        if (this.recognitionTimeout) {
+            clearTimeout(this.recognitionTimeout);
+            this.recognitionTimeout = null;
+        }
+
+        // Reset flags
         this.isListening = false;
+        this.isRestarting = false;
+        this.recognitionRetryCount = 0;
+
         this.startBtn.style.display = 'inline-block';
         this.stopBtn.style.display = 'none';
         this.updateStatus('已停止');
@@ -460,6 +528,13 @@ class VoiceVideoController {
         console.log('Valid commands:', Object.keys(this.commandMap));
 
         this.recognition.onresult = (event) => {
+            // Update last recognition time and clear timeout
+            this.lastRecognitionTime = Date.now();
+            if (this.recognitionTimeout) {
+                clearTimeout(this.recognitionTimeout);
+                this.recognitionTimeout = null;
+            }
+
             const last = event.results.length - 1;
             const result = event.results[last];
 
@@ -541,11 +616,21 @@ class VoiceVideoController {
                         this.updateListeningIndicator('error', '✗ 置信度过低');
                     } else {
                         this.updateListeningIndicator('error', '✗ 未匹配');
+
+                        // Trigger conversation mode if enabled
+                        if (this.conversationEnabled && this.dashscopeClient) {
+                            console.log('No command matched, starting conversation with:', text);
+                            this.startConversation(text);
+                        } else {
+                            // Only play error sound if conversation mode is disabled
+                            console.log('Conversation mode disabled, playing error acknowledgement');
+                            this.playAcknowledgement(text, false);
+                        }
                     }
 
                     // Return to listening state after a brief moment
                     setTimeout(() => {
-                        if (this.isListening) {
+                        if (this.isListening && !this.isTalking) {
                             this.updateListeningIndicator('listening', '正在监听...');
                         }
                     }, 1500);
@@ -580,6 +665,11 @@ class VoiceVideoController {
         this.recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
             console.log('Error details - type:', event.type, 'error:', event.error, 'message:', event.message);
+            console.log('Network status:', {
+                online: navigator.onLine,
+                connection: navigator.connection?.effectiveType || 'unknown',
+                timestamp: new Date().toISOString()
+            });
 
             if (event.error === 'no-speech') {
                 console.log('No speech detected, continuing...');
@@ -604,9 +694,11 @@ class VoiceVideoController {
                 return;
             }
             if (event.error === 'network') {
+                console.warn('Network error detected');
                 this.updateStatus('网络错误');
                 this.updateListeningIndicator('error', '网络错误');
-                // Try to restart after network error
+
+                // Simple restart - just like the original code
                 setTimeout(() => {
                     if (this.isListening) {
                         console.log('Attempting to restart after network error');
@@ -616,13 +708,21 @@ class VoiceVideoController {
                 }, 1000);
                 return;
             }
+
+            // Other errors
             this.updateStatus(`错误: ${event.error}`);
             this.updateListeningIndicator('error', `错误: ${event.error}`);
         };
 
         this.recognition.onend = () => {
-            console.log('Recognition ended, isListening:', this.isListening);
+            console.log('Recognition ended, isListening:', this.isListening, 'isRestarting:', this.isRestarting);
             console.log('Recognition object exists:', !!this.recognition);
+
+            // Don't restart if already restarting (prevents race condition)
+            if (this.isRestarting) {
+                console.log('Already restarting from error handler, skipping onend restart');
+                return;
+            }
 
             if (this.isListening) {
                 // Restart recognition immediately for next command
@@ -630,6 +730,11 @@ class VoiceVideoController {
                 setTimeout(() => {
                     if (!this.isListening) {
                         console.log('isListening is now false, aborting restart');
+                        return;
+                    }
+
+                    if (this.isRestarting) {
+                        console.log('Already restarting, skipping onend restart');
                         return;
                     }
 
@@ -654,7 +759,7 @@ class VoiceVideoController {
 
                         // Try again after a longer delay if there was an error
                         setTimeout(() => {
-                            if (this.isListening) {
+                            if (this.isListening && !this.isRestarting) {
                                 try {
                                     console.log('Second restart attempt...');
                                     this.recognition.start();
@@ -668,17 +773,49 @@ class VoiceVideoController {
                             }
                         }, 1000);
                     }
-                }, 300); // Slightly longer delay for discrete commands
+                }, 150); // Reduced delay for faster response
             } else {
                 console.log('isListening is false, not restarting recognition');
             }
         };
 
         this.recognition.onstart = () => {
-            console.log('Recognition started');
-            console.log('Recognition state - isListening:', this.isListening, 'continuous:', this.recognition.continuous);
+            console.log('Recognition started successfully');
+            console.log('Recognition state - isListening:', this.isListening, 'continuous:', this.recognition.continuous, 'isRestarting:', this.isRestarting);
             this.updateStatus('正在监听...');
             this.updateListeningIndicator('listening', '正在监听...');
+
+            // Reset flags on successful start
+            this.isRestarting = false;
+            this.recognitionRetryCount = 0;
+            console.log('Recognition started successfully, flags reset');
+
+            // Set a timeout to force restart if no result comes back within 5 seconds
+            // This prevents the recognition from getting stuck waiting for silence
+            if (this.recognitionTimeout) {
+                clearTimeout(this.recognitionTimeout);
+            }
+            this.recognitionTimeout = setTimeout(() => {
+                const timeSinceLastResult = Date.now() - this.lastRecognitionTime;
+                console.warn(`Recognition timeout: no result for ${timeSinceLastResult}ms, forcing restart...`);
+                this.updateListeningIndicator('error', '⏱️ 超时重启...');
+
+                // Force stop and restart
+                if (this.recognition && this.isListening && !this.isRestarting) {
+                    try {
+                        this.recognition.stop();
+                    } catch (e) {
+                        console.error('Error stopping recognition:', e);
+                    }
+
+                    setTimeout(() => {
+                        if (this.isListening && !this.isRestarting) {
+                            console.log('Restarting recognition after timeout');
+                            this.startBrowserRecognition();
+                        }
+                    }, 500);
+                }
+            }, 5000); // 5 second timeout
         };
 
         try {
@@ -728,6 +865,11 @@ class VoiceVideoController {
 
         // If we found matches, sort by position and take the first one
         if (matches.length > 0) {
+            // If in conversation mode, interrupt it
+            if (this.isTalking) {
+                this.interruptConversation();
+            }
+
             matches.sort((a, b) => a.position - b.position);
             const firstMatch = matches[0];
 
@@ -751,8 +893,9 @@ class VoiceVideoController {
         console.log('No match found for:', text);
         // Clear intent display on no match
         this.intentEl.textContent = '-';
-        // Play error acknowledgement for unmatched commands
-        this.playAcknowledgement(text, false);
+
+        // Don't play error acknowledgement - will start conversation instead
+        // this.playAcknowledgement(text, false);
         return false;
     }
 
@@ -760,6 +903,16 @@ class VoiceVideoController {
         console.log('Processing command:', text);
         if (!this.tryProcessCommand(text)) {
             console.log('No command matched');
+
+            // If conversation mode is enabled, trigger DashScope conversation
+            if (this.conversationEnabled && this.dashscopeClient) {
+                console.log('No command matched, starting conversation with:', text);
+                this.startConversation(text);
+            } else {
+                // Only play error sound if conversation mode is disabled
+                console.log('Conversation mode disabled, playing error acknowledgement');
+                this.playAcknowledgement(text, false);
+            }
         }
     }
 
@@ -1085,6 +1238,24 @@ class VoiceVideoController {
         }
 
         console.log('Browser supports Web Speech API');
+        return true;
+    }
+
+    /**
+     * Load conversation enabled setting from localStorage
+     */
+    loadConversationEnabled() {
+        try {
+            const saved = localStorage.getItem('conversationEnabled');
+            if (saved !== null) {
+                const enabled = saved === 'true';
+                console.log('Loaded conversation enabled from localStorage:', enabled);
+                return enabled;
+            }
+        } catch (e) {
+            console.error('Error loading conversation enabled:', e);
+        }
+        // Default to true
         return true;
     }
 
@@ -1486,6 +1657,376 @@ class VoiceVideoController {
                 audioMuteBtn.classList.remove('muted');
             }
         });
+    }
+
+    /**
+     * Create conversation mode toggle UI
+     */
+    createConversationToggle() {
+        const controlsDiv = document.querySelector('.controls');
+        const conversationToggleDiv = document.createElement('div');
+        conversationToggleDiv.className = 'conversation-toggle';
+        conversationToggleDiv.innerHTML = `
+            <div class="toggle-item">
+                <label>
+                    <input type="checkbox" id="conversationToggle" ${this.conversationEnabled ? 'checked' : ''}>
+                    <span class="toggle-label">💬 对话模式</span>
+                </label>
+                <span class="toggle-hint">启用后，未匹配的语音将触发AI对话</span>
+            </div>
+        `;
+
+        // Insert after audio controls
+        const audioControls = document.querySelector('.audio-controls');
+        if (audioControls) {
+            audioControls.parentNode.insertBefore(conversationToggleDiv, audioControls.nextSibling);
+        } else {
+            controlsDiv.parentNode.insertBefore(conversationToggleDiv, controlsDiv.nextSibling);
+        }
+
+        // Add event listener
+        const conversationToggle = document.getElementById('conversationToggle');
+        conversationToggle.addEventListener('change', (e) => {
+            this.conversationEnabled = e.target.checked;
+            console.log(`Conversation mode ${this.conversationEnabled ? 'enabled' : 'disabled'}`);
+
+            // Adjust video BGM based on conversation mode
+            if (this.conversationEnabled) {
+                // Mute BGM when conversation mode is enabled
+                this.videoPlayer1.volume = 0;
+                this.videoPlayer2.volume = 0;
+                console.log('Video BGM muted (conversation mode enabled)');
+            } else {
+                // Restore BGM when conversation mode is disabled
+                this.videoPlayer1.volume = 0.2;
+                this.videoPlayer2.volume = 0.2;
+                console.log('Video BGM restored (conversation mode disabled)');
+            }
+
+            // Save to localStorage
+            localStorage.setItem('conversationEnabled', this.conversationEnabled);
+
+            // Show feedback
+            const status = this.conversationEnabled ? '已启用' : '已禁用';
+            this.updateStatus(`对话模式${status}`);
+            setTimeout(() => {
+                if (!this.isListening && !this.isTalking) {
+                    this.updateStatus('就绪');
+                }
+            }, 2000);
+        });
+    }
+
+    /**
+     * Start conversation with DashScope LLM
+     */
+    async startConversation(userMessage) {
+        if (this.isTalking) {
+            console.log('Already in conversation, ignoring new request');
+            return;
+        }
+
+        console.log('Starting conversation with message:', userMessage);
+        this.isTalking = true;
+
+        // Stop current TTS if playing
+        this.stopTTS();
+
+        // BGM volume is now controlled by conversation mode toggle, not here
+
+        // Update UI
+        this.updateStatus('💬 对话中...');
+        this.updateListeningIndicator('processing', '💬 思考中...');
+        this.intentEl.textContent = '对话模式';
+
+        // Start playing talk video in loop
+        this.startTalkVideoLoop();
+
+        let fullResponse = '';
+        let firstChunk = true;
+
+        try {
+            await this.dashscopeClient.streamChat(
+                userMessage,
+                // onChunk - called for each text chunk
+                (chunk, accumulated) => {
+                    fullResponse = accumulated;
+                    console.log('LLM chunk:', chunk);
+
+                    // Update recognized display with response
+                    this.recognizedEl.textContent = `💬 ${accumulated}`;
+
+                    // For first chunk, start TTS immediately for low latency
+                    if (firstChunk) {
+                        firstChunk = false;
+                        this.updateListeningIndicator('processing', '💬 回复中...');
+                    }
+                },
+                // onComplete - called when streaming finishes
+                async (response) => {
+                    console.log('LLM complete, full response:', response);
+
+                    // Synthesize the full response to speech
+                    try {
+                        this.updateListeningIndicator('processing', '🔊 合成语音...');
+                        console.log('Calling synthesizeSpeech with text:', response);
+
+                        const audioBlob = await this.dashscopeClient.synthesizeSpeech(response);
+                        console.log('TTS synthesis complete, blob size:', audioBlob.size, 'type:', audioBlob.type);
+
+                        // Play TTS audio
+                        console.log('Starting TTS playback...');
+
+                        // Stop voice recognition during TTS to avoid feedback loop
+                        const wasListening = this.isListening;
+                        if (wasListening && this.recognition) {
+                            console.log('Stopping voice recognition during TTS playback');
+                            try {
+                                this.recognition.stop();
+                            } catch (e) {
+                                console.error('Error stopping recognition:', e);
+                            }
+                        }
+
+                        await this.playTTS(audioBlob);
+                        console.log('TTS playback complete');
+
+                        // Restart voice recognition after TTS with a small delay
+                        if (wasListening) {
+                            console.log('Restarting voice recognition after TTS');
+                            setTimeout(() => {
+                                if (!this.isListening) {
+                                    this.startBrowserRecognition();
+                                }
+                            }, 500); // Small delay to ensure TTS audio is fully stopped
+                        }
+
+                        // After TTS finishes, stop talk video and return to idle
+                        this.stopTalkVideoLoop();
+                        this.isTalking = false;
+
+                        // BGM volume is controlled by conversation mode toggle, not restored here
+
+                        // Return to listening state
+                        this.updateStatus('正在监听...');
+                        this.updateListeningIndicator('listening', '正在监听...');
+                        this.intentEl.textContent = '-';
+
+                    } catch (error) {
+                        console.error('Error in TTS:', error);
+                        console.error('Error stack:', error.stack);
+                        this.stopTalkVideoLoop();
+                        this.isTalking = false;
+
+                        // BGM volume is controlled by conversation mode toggle
+
+                        this.updateStatus('TTS错误');
+                        this.updateListeningIndicator('error', 'TTS错误');
+                    }
+                },
+                // onError - called on error
+                (error) => {
+                    console.error('LLM error:', error);
+                    this.stopTalkVideoLoop();
+                    this.isTalking = false;
+
+                    // BGM volume is controlled by conversation mode toggle
+
+                    this.updateStatus('对话错误');
+                    this.updateListeningIndicator('error', '对话错误');
+                    this.recognizedEl.textContent = `✗ 错误: ${error.message}`;
+
+                    // Return to listening after a delay
+                    setTimeout(() => {
+                        if (this.isListening) {
+                            this.updateStatus('正在监听...');
+                            this.updateListeningIndicator('listening', '正在监听...');
+                        }
+                    }, 2000);
+                }
+            );
+
+        } catch (error) {
+            console.error('Error starting conversation:', error);
+            this.stopTalkVideoLoop();
+            this.isTalking = false;
+            this.updateStatus('对话错误');
+            this.updateListeningIndicator('error', '对话错误');
+        }
+    }
+
+    /**
+     * Start playing talk video in infinite loop
+     */
+    startTalkVideoLoop() {
+        if (!this.talkVideo) {
+            console.warn('No talk video configured');
+            return;
+        }
+
+        console.log('Starting talk video loop:', this.talkVideo);
+
+        // Store current video to return to later
+        if (!this.isTalking) {
+            this.previousVideo = this.currentVideo;
+        }
+
+        // Extract just the filename from the path
+        const talkVideoFile = this.talkVideo.split('/').pop();
+
+        // Queue the talk video
+        this.queuedVideo = talkVideoFile;
+        this.queuedVideoEl.textContent = talkVideoFile + ' (循环)';
+
+        // Switch to talk video immediately
+        if (!this.preloadedVideos[talkVideoFile]) {
+            console.log(`Preloading talk video: ${talkVideoFile}`);
+            const video = document.createElement('video');
+            video.preload = 'auto';
+            video.src = this.talkVideo;
+            video.muted = false;
+
+            video.addEventListener('loadeddata', () => {
+                this.preloadedVideos[talkVideoFile] = video;
+                console.log(`Talk video preloaded: ${talkVideoFile}`);
+                this.switchVideo();
+            });
+
+            video.load();
+        } else {
+            console.log(`Talk video already preloaded, switching now`);
+            this.switchVideo();
+        }
+
+        // Set the active player to loop
+        this.activePlayer.loop = true;
+        console.log('Talk video set to loop mode');
+    }
+
+    /**
+     * Stop talk video loop and return to previous video
+     */
+    stopTalkVideoLoop() {
+        console.log('Stopping talk video loop');
+
+        // Disable loop mode
+        this.activePlayer.loop = false;
+        this.videoPlayer1.loop = false;
+        this.videoPlayer2.loop = false;
+
+        // Return to previous video or idle
+        const returnVideo = this.previousVideo || this.idleVideo;
+        console.log('Returning to video:', returnVideo);
+
+        this.queuedVideo = returnVideo;
+        this.queuedVideoEl.textContent = returnVideo;
+
+        // Switch back to previous/idle video
+        setTimeout(() => {
+            this.switchVideo();
+        }, 100);
+    }
+
+    /**
+     * Play TTS audio
+     */
+    async playTTS(audioBlob) {
+        return new Promise((resolve, reject) => {
+            try {
+                console.log('playTTS called with blob:', audioBlob);
+
+                // Stop any currently playing TTS
+                this.stopTTS();
+
+                // Video is already muted when conversation starts, no need to mute again
+                console.log('Playing TTS (video already muted in conversation mode)');
+
+                // Create audio element
+                this.ttsAudio = new Audio();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                this.ttsAudio.src = audioUrl;
+                this.ttsAudio.volume = 1.0; // Full volume for TTS
+                console.log('TTS audio element created, volume: 1.0');
+
+                this.ttsAudio.addEventListener('ended', () => {
+                    console.log('TTS audio finished');
+                    URL.revokeObjectURL(audioUrl);
+                    this.ttsAudio = null;
+                    resolve();
+                });
+
+                this.ttsAudio.addEventListener('error', (e) => {
+                    console.error('TTS audio error:', e);
+                    console.error('TTS audio error details:', e.target.error);
+                    reject(new Error('TTS playback error: ' + (e.target.error?.message || 'Unknown error')));
+                });
+
+                this.ttsAudio.addEventListener('loadeddata', () => {
+                    console.log('TTS audio loaded, duration:', this.ttsAudio.duration);
+                });
+
+                console.log('Starting TTS audio playback...');
+                this.ttsAudio.play().then(() => {
+                    console.log('TTS audio play() succeeded');
+                }).catch(error => {
+                    console.error('Error playing TTS audio:', error);
+                    reject(error);
+                });
+
+            } catch (error) {
+                console.error('Error in playTTS:', error);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * Stop TTS audio playback
+     */
+    stopTTS() {
+        if (this.ttsAudio) {
+            console.log('Stopping TTS audio');
+            this.ttsAudio.pause();
+            this.ttsAudio.currentTime = 0;
+            if (this.ttsAudio.src) {
+                URL.revokeObjectURL(this.ttsAudio.src);
+            }
+            this.ttsAudio = null;
+
+            // BGM volume is controlled by conversation mode toggle
+        }
+
+        // Clear TTS queue
+        this.ttsQueue = [];
+    }
+
+    /**
+     * Handle interruption during conversation
+     * Called when a command is matched while in conversation mode
+     */
+    interruptConversation() {
+        if (!this.isTalking) {
+            return;
+        }
+
+        console.log('Interrupting conversation');
+
+        // Stop TTS audio
+        this.stopTTS();
+
+        // Stop DashScope streaming
+        if (this.dashscopeClient) {
+            this.dashscopeClient.stopStreaming();
+        }
+
+        // Stop talk video loop
+        this.stopTalkVideoLoop();
+
+        // Reset state
+        this.isTalking = false;
+
+        // Clear conversation display
+        this.intentEl.textContent = '-';
     }
 }
 
