@@ -151,26 +151,36 @@ def chat_stream():
                         choice = response.output.choices[0]
                         message = choice.message
 
-                        # Check for function calls
-                        if hasattr(message, 'tool_calls') and message.tool_calls:
-                            for tool_call in message.tool_calls:
-                                if tool_call.function:
-                                    function_call_data = {
-                                        'name': tool_call.function.name,
-                                        'arguments': json.loads(tool_call.function.arguments)
-                                    }
-                                    function_calls.append(function_call_data)
+                        # Check for function calls (use try/except since hasattr doesn't work with DashScope objects)
+                        try:
+                            tool_calls = message.tool_calls
+                            if tool_calls:
+                                for tool_call in tool_calls:
+                                    if tool_call.function:
+                                        function_call_data = {
+                                            'name': tool_call.function.name,
+                                            'arguments': json.loads(tool_call.function.arguments)
+                                        }
+                                        function_calls.append(function_call_data)
 
-                                    # Send function call to frontend
-                                    yield f"data: {json.dumps({'type': 'function_call', 'function': function_call_data})}\n\n"
+                                        # Send function call to frontend
+                                        yield f"data: {json.dumps({'type': 'function_call', 'function': function_call_data})}\n\n"
+                        except (KeyError, AttributeError):
+                            # No tool_calls in this response
+                            pass
 
                         # Check for text content
-                        if message.content:
-                            chunk = message.content
-                            full_response += chunk
+                        try:
+                            content = message.content
+                            if content:
+                                chunk = content
+                                full_response += chunk
 
-                            # Send chunk to frontend
-                            yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
+                                # Send chunk to frontend
+                                yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
+                        except (KeyError, AttributeError):
+                            # No content in this response
+                            pass
                     else:
                         error_msg = f"Error: {response.code} - {response.message}"
                         yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
