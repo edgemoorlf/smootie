@@ -130,6 +130,10 @@ def chat_stream():
                 full_response = ''
                 function_calls = []
 
+                # Track accumulated function call (streaming comes in chunks)
+                # Use index as key since call_id can be empty in subsequent chunks
+                accumulated_tool_calls = {}
+
                 # Call DashScope streaming API with tools
                 call_params = {
                     'model': 'qwen-turbo',
@@ -151,22 +155,31 @@ def chat_stream():
                         choice = response.output.choices[0]
                         message = choice.message
 
-                        # Check for function calls (use try/except since hasattr doesn't work with DashScope objects)
+                        # Check for function calls (tool_calls are dicts, not objects)
                         try:
                             tool_calls = message.tool_calls
                             if tool_calls:
                                 for tool_call in tool_calls:
-                                    if tool_call.function:
-                                        function_call_data = {
-                                            'name': tool_call.function.name,
-                                            'arguments': json.loads(tool_call.function.arguments)
-                                        }
-                                        function_calls.append(function_call_data)
+                                    # tool_call is a dict, not an object
+                                    if isinstance(tool_call, dict):
+                                        # Use index as key (more reliable than id which can be empty)
+                                        call_index = tool_call.get('index', 0)
+                                        func_data = tool_call.get('function', {})
 
-                                        # Send function call to frontend
-                                        yield f"data: {json.dumps({'type': 'function_call', 'function': function_call_data})}\n\n"
+                                        # Initialize accumulator for this index
+                                        if call_index not in accumulated_tool_calls:
+                                            accumulated_tool_calls[call_index] = {
+                                                'name': '',
+                                                'arguments': ''
+                                            }
+
+                                        # Accumulate function name and arguments
+                                        if 'name' in func_data and func_data['name']:
+                                            accumulated_tool_calls[call_index]['name'] = func_data['name']
+
+                                        if 'arguments' in func_data:
+                                            accumulated_tool_calls[call_index]['arguments'] += func_data['arguments']
                         except (KeyError, AttributeError):
-                            # No tool_calls in this response
                             pass
 
                         # Check for text content
@@ -179,12 +192,29 @@ def chat_stream():
                                 # Send chunk to frontend
                                 yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
                         except (KeyError, AttributeError):
-                            # No content in this response
                             pass
                     else:
                         error_msg = f"Error: {response.code} - {response.message}"
                         yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
                         return
+
+                # After streaming completes, parse accumulated function calls
+                for call_index, call_data in accumulated_tool_calls.items():
+                    try:
+                        # Parse the complete JSON arguments
+                        args_string = call_data['arguments'].strip()
+                        arguments = json.loads(args_string)
+                        function_call_data = {
+                            'name': call_data['name'],
+                            'arguments': arguments
+                        }
+                        function_calls.append(function_call_data)
+
+                        # Send function call to frontend
+                        yield f"data: {json.dumps({'type': 'function_call', 'function': function_call_data})}\n\n"
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing function arguments: {e}", flush=True)
+                        print(f"Arguments string: '{call_data['arguments']}'", flush=True)
 
                 # Save to conversation history
                 history.append({'role': 'user', 'content': user_message})
