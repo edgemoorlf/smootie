@@ -226,7 +226,8 @@ class ConfigLoader {
                     generic: [],
                     specific: {},
                     error: null
-                }
+                },
+                conversation: setConfig.conversation || null  // Include conversation config
             };
         }
 
