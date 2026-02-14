@@ -184,16 +184,10 @@ class VoiceVideoController {
         // Add conversation mode toggle
         this.createConversationToggle();
 
-        // Set initial BGM volume based on conversation mode
-        if (this.conversationEnabled) {
-            this.videoPlayer1.volume = 0;
-            this.videoPlayer2.volume = 0;
-            console.log('Initial BGM muted (conversation mode enabled)');
-        } else {
-            this.videoPlayer1.volume = 0.2;
-            this.videoPlayer2.volume = 0.2;
-            console.log('Initial BGM set to 0.2 (conversation mode disabled)');
-        }
+        // Set initial BGM volume - allow BGM for action videos, mute for idle
+        this.videoPlayer1.volume = 0.2;
+        this.videoPlayer2.volume = 0.2;
+        console.log('Initial BGM set to 0.2');
 
         // Preload all videos first
         this.preloadVideos().then(() => {
@@ -1693,19 +1687,6 @@ class VoiceVideoController {
         conversationToggle.addEventListener('change', (e) => {
             this.conversationEnabled = e.target.checked;
             console.log(`Conversation mode ${this.conversationEnabled ? 'enabled' : 'disabled'}`);
-
-            // Adjust video BGM based on conversation mode
-            if (this.conversationEnabled) {
-                // Mute BGM when conversation mode is enabled
-                this.videoPlayer1.volume = 0;
-                this.videoPlayer2.volume = 0;
-                console.log('Video BGM muted (conversation mode enabled)');
-            } else {
-                // Restore BGM when conversation mode is disabled
-                this.videoPlayer1.volume = 0.2;
-                this.videoPlayer2.volume = 0.2;
-                console.log('Video BGM restored (conversation mode disabled)');
-            }
 
             // Save to localStorage
             localStorage.setItem('conversationEnabled', this.conversationEnabled);
