@@ -151,7 +151,11 @@ class VoiceVideoController {
 
         // Load conversation config if available
         if (config.conversation) {
-            this.conversationEnabled = config.conversation.enabled !== false;
+            // Keep the conversationEnabled value from localStorage (don't override it)
+            // Only set it if conversation is explicitly disabled in config
+            if (config.conversation.enabled === false) {
+                this.conversationEnabled = false;
+            }
             this.talkVideo = config.conversation.talkVideo;
             this.conversationActions = config.conversation.actions || [];
             if (config.conversation.sessionId) {
