@@ -150,17 +150,11 @@ class VoiceVideoController {
         this.idleVideo = config.idleVideo; // Store the idle/anchor video
 
         // Load conversation config if available
-        console.log('[loadVideoSet] config.conversation:', config.conversation);
-        console.log('[loadVideoSet] conversationEnabled BEFORE:', this.conversationEnabled);
-
         if (config.conversation) {
             // Keep the conversationEnabled value from localStorage (don't override it)
             // Only set it if conversation is explicitly disabled in config
             if (config.conversation.enabled === false) {
                 this.conversationEnabled = false;
-                console.log('[loadVideoSet] Config disabled conversation, set to false');
-            } else {
-                console.log('[loadVideoSet] Config has conversation, keeping conversationEnabled:', this.conversationEnabled);
             }
             this.talkVideo = config.conversation.talkVideo;
             this.conversationActions = config.conversation.actions || [];
@@ -171,13 +165,10 @@ class VoiceVideoController {
             console.log(`Talk video: ${this.talkVideo}`);
             console.log(`Available actions for function calling:`, this.conversationActions);
         } else {
-            console.log('[loadVideoSet] No conversation config, setting to false');
             this.conversationEnabled = false;
             this.talkVideo = null;
             this.conversationActions = [];
         }
-
-        console.log('[loadVideoSet] conversationEnabled AFTER:', this.conversationEnabled);
 
         console.log(`Loaded video set: ${setName}`, config);
         console.log(`Available commands: ${Object.keys(config.commands).join(', ')}`);
@@ -1258,12 +1249,10 @@ class VoiceVideoController {
     loadConversationEnabled() {
         try {
             const saved = localStorage.getItem('conversationEnabled');
-            console.log('[loadConversationEnabled] localStorage value:', saved, 'type:', typeof saved);
 
             // FORCE DEFAULT TO TRUE - clear any old false values
             // This ensures conversation mode is always enabled by default
             localStorage.setItem('conversationEnabled', 'true');
-            console.log('[loadConversationEnabled] Force set to true');
             return true;
         } catch (e) {
             console.error('Error loading conversation enabled:', e);
@@ -1675,8 +1664,6 @@ class VoiceVideoController {
      * Create conversation mode toggle UI
      */
     createConversationToggle() {
-        console.log('createConversationToggle called, conversationEnabled:', this.conversationEnabled);
-
         const controlsDiv = document.querySelector('.controls');
         const conversationToggleDiv = document.createElement('div');
         conversationToggleDiv.className = 'conversation-toggle';
@@ -1689,8 +1676,6 @@ class VoiceVideoController {
                 <span class="toggle-hint">启用后，未匹配的语音将触发AI对话</span>
             </div>
         `;
-
-        console.log('Checkbox HTML:', conversationToggleDiv.innerHTML);
 
         // Insert after audio controls
         const audioControls = document.querySelector('.audio-controls');
