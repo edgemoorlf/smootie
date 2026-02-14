@@ -158,7 +158,7 @@ class VoiceVideoController {
             }
             this.talkVideo = config.conversation.talkVideo;
             this.conversationActions = config.conversation.actions || [];
-            if (config.conversation.sessionId) {
+            if (config.conversation.sessionId && this.dashscopeClient) {
                 this.dashscopeClient.sessionId = config.conversation.sessionId;
             }
             console.log(`Conversation mode: ${this.conversationEnabled ? 'enabled' : 'disabled'}`);
