@@ -1249,16 +1249,22 @@ class VoiceVideoController {
     loadConversationEnabled() {
         try {
             const saved = localStorage.getItem('conversationEnabled');
-            if (saved !== null) {
-                const enabled = saved === 'true';
-                console.log('Loaded conversation enabled from localStorage:', enabled);
-                return enabled;
+            console.log('[loadConversationEnabled] localStorage value:', saved, 'type:', typeof saved);
+
+            // If no value is saved, set default to true and save it
+            if (saved === null) {
+                console.log('[loadConversationEnabled] No localStorage value, setting default: true');
+                localStorage.setItem('conversationEnabled', 'true');
+                return true;
             }
+
+            const enabled = saved === 'true';
+            console.log('[loadConversationEnabled] Loaded from localStorage:', enabled);
+            return enabled;
         } catch (e) {
             console.error('Error loading conversation enabled:', e);
+            return true; // Default to true on error
         }
-        // Default to true
-        return true;
     }
 
     // ========================================
@@ -1665,6 +1671,8 @@ class VoiceVideoController {
      * Create conversation mode toggle UI
      */
     createConversationToggle() {
+        console.log('createConversationToggle called, conversationEnabled:', this.conversationEnabled);
+
         const controlsDiv = document.querySelector('.controls');
         const conversationToggleDiv = document.createElement('div');
         conversationToggleDiv.className = 'conversation-toggle';
@@ -1677,6 +1685,8 @@ class VoiceVideoController {
                 <span class="toggle-hint">启用后，未匹配的语音将触发AI对话</span>
             </div>
         `;
+
+        console.log('Checkbox HTML:', conversationToggleDiv.innerHTML);
 
         // Insert after audio controls
         const audioControls = document.querySelector('.audio-controls');
