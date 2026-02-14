@@ -1251,16 +1251,11 @@ class VoiceVideoController {
             const saved = localStorage.getItem('conversationEnabled');
             console.log('[loadConversationEnabled] localStorage value:', saved, 'type:', typeof saved);
 
-            // If no value is saved, set default to true and save it
-            if (saved === null) {
-                console.log('[loadConversationEnabled] No localStorage value, setting default: true');
-                localStorage.setItem('conversationEnabled', 'true');
-                return true;
-            }
-
-            const enabled = saved === 'true';
-            console.log('[loadConversationEnabled] Loaded from localStorage:', enabled);
-            return enabled;
+            // FORCE DEFAULT TO TRUE - clear any old false values
+            // This ensures conversation mode is always enabled by default
+            localStorage.setItem('conversationEnabled', 'true');
+            console.log('[loadConversationEnabled] Force set to true');
+            return true;
         } catch (e) {
             console.error('Error loading conversation enabled:', e);
             return true; // Default to true on error
