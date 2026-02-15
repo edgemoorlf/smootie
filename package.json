@@ -1,0 +1,24 @@
+{
+  "name": "smootie",
+  "version": "1.0.0",
+  "description": "Voice-controlled video interaction system with AI conversation",
+  "main": "app.py",
+  "scripts": {
+    "test": "node test_checkbox.js",
+    "test:e2e": "node test_checkbox.js",
+    "dev": "python3 app.py",
+    "install-chrome": "npx puppeteer browsers install chrome"
+  },
+  "keywords": [
+    "voice-control",
+    "video",
+    "ai",
+    "conversation",
+    "dashscope"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "puppeteer": "^23.11.1"
+  }
+}
